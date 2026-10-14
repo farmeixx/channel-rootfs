@@ -1,66 +1,23 @@
-# Alpine Rootfs — Channel
+# Channel Alpine rootfs
 
-Alpine Linux ARM64 with OpenRC for the Motorola Moto G7 Play.
+Moto G7 Play (channel) alpine rootfs, shell-based. This branch reuses the existing
+mainline kernel checkpoint **exclusively**; it never compiles or dispatches
+another kernel from a rootfs workflow.
 
-## Build
+The firmware required for Channel Wi-Fi is included in `firmware/channel/`.
+No per-device extraction or Android firmware mount is required. The checked-in
+script `scripts/firmware/channel.sh` verifies and installs the blobs.
 
-The `alpine` branch contains `alpine/build.sh` and `.github/workflows/alpine.yml`.
-
-The workflow installs matching mainline kernel modules. Artifact: `channel-alpine-rootfs`.
-
-## Network
-
-Connect over the USB gadget:
-
-```sh
-ssh root@172.16.42.1
-```
-
-For Wi-Fi, use NetworkManager on the device:
+For local Linux builds, after obtaining a valid checkpoint in
+`out/kernel/checkpoint/`, run:
 
 ```sh
-nmcli device wifi list
-nmcli --ask device wifi connect "SSID" ifname wlan0
+bash alpine/run.sh
 ```
 
-## Time
-
-If the clock is incorrect, set the actual UTC time manually:
-
-```sh
-date -u -s "YYYY-MM-DD HH:MM:SS"
-date
-```
-
-## Expand the root filesystem
-
-After boot, run as root and identify the ext4 partition mounted at `/`:
-
-```sh
-lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS
-grep ' / ' /proc/mounts
-command -v resize2fs
-```
-
-For Alpine, install it if missing:
-
-```sh
-apk add e2fsprogs-extra
-```
-
-Use the **verified root partition** in this command:
-
-```sh
-resize2fs /dev/ROOT_PARTITION
-df -h /
-```
-
-This expands ext4 to the available size of its partition. Never guess the device path.
-
-## Rootfs details
-
-- Artifact: `channel-alpine-rootfs`
-- Image: `alpine-channel-rootfs.ext4.zst`
-- Format: ext4 (raw, zstd-compressed)
-- Label: `alpine`
-- UUID: `89530000-6320-4000-8000-000000000001`
+In GitHub Actions, this branch's workflow runs
+`bash scripts/ci/build-rootfs.sh alpine`, downloading a **successful existing**
+`mainline.yml` checkpoint from branch `main`. Optional input
+`kernel_run_id` pins the exact kernel build. With no ID, the latest usable
+mainline checkpoint is selected. If unavailable, the rootfs workflow fails.
+The YAML defines only triggers, permissions, invocation, and artifact uploads.

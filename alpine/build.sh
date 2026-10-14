@@ -101,6 +101,8 @@ echo "::endgroup::"
 
 echo "::group::Install Channel Alpine headless configuration"
 sudo cp -a "$REPO_ROOT/alpine/rootfs/." "$ROOTFS/"
+# Install original device firmware as regular files; never mount Android vendor/modem.
+bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
 sudo chmod 0755 \
   "$ROOTFS/usr/local/sbin/channel-usb-gadget" \
   "$ROOTFS/etc/init.d/channel-usb-gadget" \
