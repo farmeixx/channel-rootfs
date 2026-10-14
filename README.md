@@ -1,106 +1,72 @@
-# Channel rootfs — unified ZIP, shell-driven builds
+# Moto G7 Play (channel) — guia rápido
 
-**Device:** Motorola Moto G7 Play (`channel`), ARM64. This ZIP contains the existing
-`mainline/`, `alpine/`, `debian/` and `ubuntu/` builders and their original target
-rootfs overlays (NetworkManager, SSH, USB gadget, DHCP and service startup).
+Este branch **help** é somente para consulta. Para compilar, use a branch `main` (build automática) ou `manual-deps` (dependências do host instaladas por você).
 
-No `git clone` is needed to obtain this builder: extract this ZIP. `git` is
-installed by `mainline/run.sh` only because the **kernel source** is fetched
-from the GitLab repository. All builder scripts are included in the ZIP.
+## Arquivos de build
 
+No **Actions**, o workflow **Build mainline kernel** fornece o kernel, DTB, boot image e módulos correspondentes. Os rootfs **Alpine**, **Debian** e **Ubuntu** usam o checkpoint desse kernel — não recompilam outro kernel.
 
-## Wi-Fi firmware already included
+| Distribuição | Imagem ext4 comprimida |
+| --- | --- |
+| Alpine | `alpine-channel-rootfs.ext4.zst` |
+| Debian | `debian-channel-rootfs.ext4.zst` |
+| Ubuntu | `ubuntu-channel-rootfs.ext4.zst` |
 
-The known-working Channel firmware is shipped in `firmware/channel/` and copied
-into every rootfs by the `.sh` builder. No downloads, mounts, personal firmware
-extraction, tokens or special inputs are needed. See [FIRMWARE.md](FIRMWARE.md).
+Use sempre os módulos correspondentes ao kernel do mesmo checkpoint.
 
-## Build locally (Ubuntu 24.04 x86_64 recommended)
+## Conectar por SSH (USB)
 
-Requires Linux, `sudo` privileges, internet access, sufficient free disk space
-(for kernel source/build and multi-gigabyte rootfs images), and the `apt-get`
-package manager. The scripts install their host build dependencies automatically.
-The firmware packaging and shell checks were tested; a complete kernel/rootfs CI build has not been run here.
-
-```sh
-unzip channel-rootfs-full-sh-wifi-bundled.zip
-cd channel-rootfs-full-sh
-bash mainline/run.sh
-bash alpine/run.sh
-bash debian/run.sh
-bash ubuntu/run.sh
-```
-
-Each rootfs command is independent. Build only the distributions you want. No
-rootfs script compiles a kernel. If `out/kernel/checkpoint` is missing/invalid,
-it fails instead of installing packages or silently building a replacement.
-
-`mainline/run.sh` compiles from
-`https://gitlab.com/vanadium-oss/motorola-msm8953/mainline/linux.git`
-(branch `msm8953/latest`) with the existing `mainline/build.sh`, installs its
-modules, and creates a boot image using pinned AOSP `mkbootimg`.
-
-### Results
-
-```text
-out/
-├── kernel/
-│   ├── checkpoint/            # Image.gz, DTB, modules, config, release, hashes, boot-channel.img
-│   └── images/                # boot.img, boot-channel.img
-└── rootfs/
-    ├── alpine/                # alpine-channel-rootfs.ext4.zst, rootfs.ext4, boot.img, metadata
-    ├── debian/                # debian-channel-rootfs.ext4.zst, rootfs.ext4, boot.img, metadata
-    └── ubuntu/                # ubuntu-channel-rootfs.ext4.zst, rootfs.ext4, boot.img, metadata
-```
-
-The rootfs `boot.img` is copied directly from the *same* validated checkpoint.
-This preserves the original boot cmdline and kernel/module pairing. Rootfs
-images retain their existing overlay, package selection and startup services.
-
-You can reuse a checkpoint from a different directory using:
-
-```sh
-KERNEL_CHECKPOINT_DIR=/path/to/checkpoint bash alpine/run.sh
-```
-
-The checkpoint must contain `SHA256SUMS`, `kernel-release.txt`, `Image.gz`,
-`boot-channel.img`, the Channel DTB, matching `kernel-modules-*.tar.zst`,
-`kernel.config` and `System.map`. The legacy Action checksum paths (`out/`) are supported.
-
-## CI (optional)
-
-The four small `.github/workflows/*.yml` files call the same shell scripts; rootfs workflows use `scripts/ci/build-rootfs.sh` and **never rebuild or dispatch a kernel**.
-The workflow YAML files only define triggers, permissions and artifact uploads.
-
-- **Build mainline kernel:** manually builds and publishes the checkpoint.
-- **Build Alpine/Debian/Ubuntu:** downloads the newest live checkpoint from
-  `mainline.yml`, or the explicit `kernel_run_id` supplied on dispatch, then
-  runs the distribution's shell entry point. An unavailable/expired checkpoint
-  is a hard failure; there is no temporary kernel build.
-- The GitHub CLI is used only by the CI download helper. Local builds do not
-  need GitHub authentication or previous CI runs.
-
-**GitHub Actions kernel selection:** every rootfs run uses a successful existing
-`mainline.yml` artifact from branch `main`. If you provide `kernel_run_id`, that
-exact run must be a successful mainline run with an unexpired checkpoint; if left
-blank, it selects the most recent suitable run. No rootfs run triggers a kernel
-build, with or without an ID.
-
-## Target network / SSH
-
-Each rootfs keeps NetworkManager (`nmcli`) for Wi-Fi, USB gadget + DHCP and
-SSH bound to the USB device address `172.16.42.1`. For SSH after boot:
+Com o Channel ligado e o USB Gadget ativo:
 
 ```sh
 ssh root@172.16.42.1
 ```
 
-This intentionally reflects the existing project's USB-only SSH policy. See
-individual `*/build.sh` and `*/rootfs/` for the precise configuration.
+## Wi-Fi no Channel
 
-## Notes
+Listar as redes e conectar sem expor a senha no comando:
 
-- The build host is expected to be Linux x86_64 with Ubuntu/Debian `apt-get`,
-  not Windows CMD or a bare Android shell. Use a compatible Linux machine/VM/CI.
-- The existing `mainline/publish-rootfs-images.sh` is retained as reference;
-  `scripts/rootfs/run.sh` now handles copying boot.img and extracting ext4.
+```sh
+nmcli device wifi list
+nmcli --ask device wifi connect "SSID" ifname wlan0
+```
+
+Troque `SSID` pelo nome da sua rede.
+
+## Corrigir data e hora
+
+Quando o relógio estiver errado, ajuste **a hora UTC verdadeira**:
+
+```sh
+date -u -s "YYYY-MM-DD HH:MM:SS"
+date
+```
+
+Substitua `YYYY-MM-DD HH:MM:SS` pela data e hora UTC atuais.
+
+## Expandir o ext4 (resize2fs)
+
+Execute no Channel **como root**. Primeiro descubra qual partição ext4 está montada em `/`:
+
+```sh
+lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS
+grep ' / ' /proc/mounts
+command -v resize2fs
+```
+
+Se `resize2fs` não estiver instalado: use o pacote `e2fsprogs-extra` no Alpine ou `e2fsprogs` no Debian/Ubuntu.
+
+**Somente depois de identificar com certeza a partição raiz**, substitua `/dev/ROOT_PARTITION` pelo dispositivo correto e execute:
+
+```sh
+resize2fs /dev/ROOT_PARTITION
+df -h /
+```
+
+> **Atenção:** `resize2fs` expande o sistema de arquivos até o tamanho **já disponível na partição**; não redimensiona a partição em si. Não execute na partição errada, em `modem`, `vendor` ou `modemst`. Não adivinhe o caminho.
+
+## Referência
+
+- Formato do rootfs: **ext4** (imagem bruta compactada com zstd).
+- UUID ext4 usado pelo projeto: `89530000-6320-4000-8000-000000000001`.
+- Projeto de builds: [branch main](https://github.com/farmeixx/channel-rootfs/tree/main).
