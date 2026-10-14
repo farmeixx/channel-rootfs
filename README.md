@@ -5,7 +5,7 @@ This `main` branch builds **only the mainline kernel** for Motorola Moto G7 Play
 ## GitHub Actions
 
 - **Build mainline kernel** (`mainline.yml`): manually build the kernel on **main** and publish a reusable, validated checkpoint with the matching `boot.img`, DTB and modules.
-- **Build Alpine / Debian / Ubuntu rootfs**: select the matching `alpine`, `debian` or `ubuntu` branch in the workflow's **Run workflow** dropdown. Their YAMLs here are only GitHub UI entry points. A rootfs workflow on `main` is skipped and **does not compile a rootfs**.
+- **Build Alpine / Debian / Ubuntu rootfs**: select the matching `alpine`, `debian` or `ubuntu` branch in the workflow's **Run workflow** dropdown. Their YAMLs here are only GitHub UI entry points. A rootfs workflow started on `main` **stops with a branch-selection error** and never compiles a rootfs.
 - Rootfs branches use their own shell scripts and **download an already successful, unexpired `mainline.yml` checkpoint from `main`**. If `kernel_run_id` is given, that exact kernel run is used; otherwise the latest usable kernel run is selected. If unavailable, the rootfs run fails. No `workflow_dispatch` of kernel from a rootfs build.
 
 > GitHub requires workflow YAML on the default branch for the manual **Run workflow** button. These three small registration YAMLs are kept here for this reason; the distro build scripts, firmware and overlays live only on their respective branches.
