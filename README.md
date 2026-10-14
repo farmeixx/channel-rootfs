@@ -21,3 +21,5 @@ In GitHub Actions, this branch's workflow runs
 `kernel_run_id` pins the exact kernel build. With no ID, the latest usable
 mainline checkpoint is selected. If unavailable, the rootfs workflow fails.
 The YAML defines only triggers, permissions, invocation, and artifact uploads.
+
+**Run workflow: select the `alpine` branch**, not `main` or another distribution. This workflow reuses only a previously successful mainline kernel checkpoint; it does not compile or dispatch the kernel.

@@ -10,10 +10,13 @@ requested="${KERNEL_RUN_ID:-}"
 if [ -n "$requested" ] && ! [[ "$requested" =~ ^[0-9]+$ ]]; then
   echo 'ERROR: kernel_run_id must be a numeric GitHub Actions run ID.' >&2; exit 1
 fi
+# Verify the workflow ID; selecting by path alone can reject real mainline runs.
+mainline_workflow_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mainline.yml" --jq '.id')"
+[[ "$mainline_workflow_id" =~ ^[0-9]+$ ]] || { echo 'ERROR: Kernel workflow ID unavailable.' >&2; exit 1; }
 is_mainline_run() {
   local run="$1"
   gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" \
-    --jq 'select(.conclusion == "success" and .head_branch == "main" and (.path | startswith(".github/workflows/mainline.yml"))) | .id' | grep -Fxq "$run"
+    --jq "select(.conclusion == \"success\" and .head_branch == \"main\" and .workflow_id == $mainline_workflow_id) | .id" | grep -Fxq "$run"
 }
 artifact_for_run() {
   gh api "repos/$GITHUB_REPOSITORY/actions/runs/$1/artifacts?per_page=100" \
