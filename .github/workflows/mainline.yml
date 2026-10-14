@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   kernel:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -17,7 +18,10 @@ jobs:
       - name: Identify kernel revision
         id: source
         shell: bash
-        run: echo "sha=$(cat out/kernel/checkpoint/kernel-git-revision.txt)" >> "$GITHUB_OUTPUT"
+        run: |
+          sha="$(sed -n 's/^kernel_source_sha=//p' out/kernel/checkpoint/source-report.txt)"
+          test -n "$sha" || { echo 'Kernel source SHA missing' >&2; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: channel-mainline-kernel-${{ steps.source.outputs.sha }}
