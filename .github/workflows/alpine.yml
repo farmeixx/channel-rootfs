@@ -18,13 +18,11 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-      - name: Download required kernel checkpoint
+      - name: Reuse kernel checkpoint and build alpine via shell
         env:
           GH_TOKEN: ${{ github.token }}
           KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
-        run: bash scripts/ci/fetch-kernel.sh
-      - name: Build distro rootfs using that kernel
-        run: bash alpine/run.sh
+        run: bash scripts/ci/build-rootfs.sh alpine
       - uses: actions/upload-artifact@v4
         with:
           name: channel-alpine-rootfs
