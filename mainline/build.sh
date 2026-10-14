@@ -123,5 +123,8 @@ echo "::endgroup::"
   echo "architecture=arm64"
 } > "$OUT_DIR/kernel-info.txt"
 
-echo "KERNEL_RELEASE=$KREL" >> "$GITHUB_ENV"
+# GitHub Actions uses GITHUB_ENV; local ZIP builds do not.
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "KERNEL_RELEASE=$KREL" >> "$GITHUB_ENV"
+fi
 echo "Kernel release: $KREL"
