@@ -1,6 +1,2 @@
 out/
 .work/
-
-# Owner-provided proprietary device firmware — never publish
-firmware/channel/*
-!firmware/channel/.gitkeep
