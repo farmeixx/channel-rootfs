@@ -1,47 +1,20 @@
+# UI registration only. The real ubuntu build is in the ubuntu branch.
+# GitHub requires workflow_dispatch YAML on the default branch.
 name: Build ubuntu rootfs
 on:
   workflow_dispatch:
     inputs:
       kernel_run_id:
-        description: 'Optional mainline kernel run ID; blank uses latest live checkpoint'
+        description: 'Optional existing mainline kernel run ID'
         required: false
         type: string
 permissions:
   contents: read
-  actions: read
-concurrency:
-  group: channel-ubuntu-rootfs
-  cancel-in-progress: true
 jobs:
-  rootfs:
-    if: github.ref == 'refs/heads/ubuntu'
+  wrong-branch:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - name: Reuse kernel checkpoint and build ubuntu via shell
-        env:
-          GH_TOKEN: ${{ github.token }}
-          KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
-        run: bash scripts/ci/build-rootfs.sh ubuntu
-      - uses: actions/upload-artifact@v4
-        with:
-          name: channel-ubuntu-rootfs
-          path: |
-            out/rootfs/ubuntu/ubuntu-channel-rootfs.ext4.zst
-            out/rootfs/ubuntu/build-info.txt
-            out/rootfs/ubuntu/SHA256SUMS.ubuntu
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boot.img
-          path: out/rootfs/ubuntu/boot.img
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootfs.ext4
-          path: out/rootfs/ubuntu/rootfs.ext4
-          if-no-files-found: error
-          retention-days: 14
+      - name: Select the ubuntu branch
+        run: |
+          echo "::error::Use Run workflow > Branch: ubuntu. The main branch is kernel-only."
+          exit 1
