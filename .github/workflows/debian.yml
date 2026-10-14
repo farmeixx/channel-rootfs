@@ -1,47 +1,20 @@
+# UI registration only. The real debian build is in the debian branch.
+# GitHub requires workflow_dispatch YAML on the default branch.
 name: Build debian rootfs
 on:
   workflow_dispatch:
     inputs:
       kernel_run_id:
-        description: 'Optional mainline kernel run ID; blank uses latest live checkpoint'
+        description: 'Optional existing mainline kernel run ID'
         required: false
         type: string
 permissions:
   contents: read
-  actions: read
-concurrency:
-  group: channel-debian-rootfs
-  cancel-in-progress: true
 jobs:
-  rootfs:
-    if: github.ref == 'refs/heads/debian'
+  wrong-branch:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - name: Reuse kernel checkpoint and build debian via shell
-        env:
-          GH_TOKEN: ${{ github.token }}
-          KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
-        run: bash scripts/ci/build-rootfs.sh debian
-      - uses: actions/upload-artifact@v4
-        with:
-          name: channel-debian-rootfs
-          path: |
-            out/rootfs/debian/debian-channel-rootfs.ext4.zst
-            out/rootfs/debian/build-info.txt
-            out/rootfs/debian/SHA256SUMS.debian
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boot.img
-          path: out/rootfs/debian/boot.img
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootfs.ext4
-          path: out/rootfs/debian/rootfs.ext4
-          if-no-files-found: error
-          retention-days: 14
+      - name: Select the debian branch
+        run: |
+          echo "::error::Use Run workflow > Branch: debian. The main branch is kernel-only."
+          exit 1
