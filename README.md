@@ -1,20 +1,12 @@
-# Channel Rootfs Builder
+# Alpine Rootfs — Channel
 
-ARM64 kernel and rootfs builds for the Motorola Moto G7 Play (`channel`).
+Alpine Linux ARM64 with OpenRC for the Motorola Moto G7 Play.
 
-## Workflows
+## Build
 
-**Build mainline kernel** produces `boot-channel.img`, the Channel DTB and matching modules.
+The `alpine` branch contains `alpine/build.sh` and `.github/workflows/alpine.yml`.
 
-**Build Debian rootfs**, **Build Ubuntu rootfs** and **Build Alpine rootfs** produce independent filesystem images. Each workflow builds from its matching distribution branch and may reuse the kernel artifact.
-
-Use the workflow you need from **Actions**.
-
-## Filesystems
-
-Each distribution publishes its own compressed ext4 image: `debian-channel-rootfs.ext4.zst`, `ubuntu-channel-rootfs.ext4.zst` or `alpine-channel-rootfs.ext4.zst`.
-
-The kernel boots directly from the configured root partition. Keep the kernel modules paired with that build.
+The workflow installs matching mainline kernel modules. Artifact: `channel-alpine-rootfs`.
 
 ## Network
 
@@ -50,7 +42,11 @@ grep ' / ' /proc/mounts
 command -v resize2fs
 ```
 
-If `resize2fs` is unavailable, install `e2fsprogs` on Debian/Ubuntu or `e2fsprogs-extra` on Alpine.
+For Alpine, install it if missing:
+
+```sh
+apk add e2fsprogs-extra
+```
 
 Use the **verified root partition** in this command:
 
@@ -63,11 +59,8 @@ This expands ext4 to the available size of its partition. Never guess the device
 
 ## Rootfs details
 
-| Distribution | Artifact | Image | Label |
-| --- | --- | --- | --- |
-| Debian | `channel-debian-rootfs` | `debian-channel-rootfs.ext4.zst` | `debian` |
-| Ubuntu | `channel-ubuntu-rootfs` | `ubuntu-channel-rootfs.ext4.zst` | `ubuntu` |
-| Alpine | `channel-alpine-rootfs` | `alpine-channel-rootfs.ext4.zst` | `alpine` |
-
+- Artifact: `channel-alpine-rootfs`
+- Image: `alpine-channel-rootfs.ext4.zst`
 - Format: ext4 (raw, zstd-compressed)
-- Ext4 UUID: `89530000-6320-4000-8000-000000000001`
+- Label: `alpine`
+- UUID: `89530000-6320-4000-8000-000000000001`

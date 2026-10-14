@@ -104,7 +104,7 @@ jobs:
                 break
               fi
             done < <(
-              # Use the renamed workflow; keep historic checkpoints from build-mainline.yml.
+              # Prefer mainline.yml; retain historic build-mainline.yml checkpoints.
               for WORKFLOW in mainline.yml build-mainline.yml; do
                 gh run list \
                   --repo "$GITHUB_REPOSITORY" \
