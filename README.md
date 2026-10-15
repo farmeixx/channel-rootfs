@@ -6,7 +6,7 @@ This `main` branch holds **only the mainline kernel builder and GitHub Actions e
 
 - **Build mainline kernel** (`mainline.yml`): manually build the kernel on **main** and publish a reusable, validated checkpoint with the matching `boot.img`, DTB and modules.
 - **Build Alpine / Debian / Ubuntu rootfs**: run the corresponding workflow directly on **`main`**. Its YAML checks out the relevant `alpine`, `debian` or `ubuntu` branch and runs `bash scripts/ci/build-rootfs.sh DISTRO`, without duplicating the build logic in YAML. Alternatively, the workflow in each distro branch still works when selected.
-- Rootfs branches use their own shell scripts and **download an already successful, unexpired `mainline.yml` checkpoint from `main`**. If `kernel_run_id` is given, that exact kernel run is used; otherwise the latest usable kernel run is selected. If unavailable, the rootfs run fails. No `workflow_dispatch` of kernel from a rootfs build.
+- Rootfs branches use their own shell scripts and **download an already successful, unexpired `mainline.yml` checkpoint from `main`**. The newest successful kernel run with an unexpired checkpoint artifact is selected automatically. No run ID is needed or accepted. If no usable checkpoint is available, the rootfs run fails. No `workflow_dispatch` of kernel from a rootfs build.
 
 > GitHub requires workflow YAML on the default branch for manual **Run workflow**. The three YAMLs here are functional entry points: they fetch the corresponding distro branch, whose scripts, firmware and overlays remain separate from `main`.
 
