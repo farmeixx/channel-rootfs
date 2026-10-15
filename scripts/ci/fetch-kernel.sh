@@ -6,10 +6,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 [ -n "${GITHUB_REPOSITORY:-}" ] || { echo 'ERROR: GITHUB_REPOSITORY missing.' >&2; exit 1; }
 command -v gh >/dev/null || { echo 'ERROR: GitHub CLI missing.' >&2; exit 1; }
 [ -n "${GH_TOKEN:-}" ] || { echo 'ERROR: GH_TOKEN missing.' >&2; exit 1; }
-requested="${KERNEL_RUN_ID:-}"
-if [ -n "$requested" ] && ! [[ "$requested" =~ ^[0-9]+$ ]]; then
-  echo 'ERROR: kernel_run_id must be a numeric GitHub Actions run ID.' >&2; exit 1
-fi
 # Verify the workflow ID; selecting by path alone can reject real mainline runs.
 mainline_workflow_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mainline.yml" --jq '.id')"
 [[ "$mainline_workflow_id" =~ ^[0-9]+$ ]] || { echo 'ERROR: Kernel workflow ID unavailable.' >&2; exit 1; }
@@ -24,25 +20,19 @@ artifact_for_run() {
 }
 selected_run=''
 selected_artifact=''
-if [ -n "$requested" ]; then
-  is_mainline_run "$requested" || { echo "ERROR: $requested must be a successful mainline.yml run on main." >&2; exit 1; }
-  selected_artifact="$(artifact_for_run "$requested")"
-  [ -n "$selected_artifact" ] || { echo "ERROR: Kernel artifact for run $requested is missing or expired." >&2; exit 1; }
-  selected_run="$requested"
-else
-  while IFS= read -r candidate; do
-    [ -n "$candidate" ] || continue
-    is_mainline_run "$candidate" || continue
-    artifact="$(artifact_for_run "$candidate")"
-    if [ -n "$artifact" ]; then
-      selected_run="$candidate"
-      selected_artifact="$artifact"
-      break
-    fi
-  done < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow mainline.yml \
-      --branch main --status success --limit 50 --json databaseId --jq '.[].databaseId')
-  [ -n "$selected_run" ] || { echo 'ERROR: No usable mainline kernel checkpoint. Run the dedicated mainline workflow once.' >&2; exit 1; }
-fi
+# Use the newest successful mainline run with a nonexpired kernel artifact.
+while IFS= read -r candidate; do
+  [ -n "$candidate" ] || continue
+  is_mainline_run "$candidate" || continue
+  artifact="$(artifact_for_run "$candidate")"
+  if [ -n "$artifact" ]; then
+    selected_run="$candidate"
+    selected_artifact="$artifact"
+    break
+  fi
+done < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow mainline.yml \
+    --branch main --status success --limit 50 --json databaseId --jq '.[].databaseId')
+[ -n "$selected_run" ] || { echo 'ERROR: No usable successful mainline kernel checkpoint. Run the dedicated mainline workflow once.' >&2; exit 1; }
 checkpoint="$ROOT/out/kernel/checkpoint"
 rm -rf "$checkpoint"
 mkdir -p "$checkpoint"

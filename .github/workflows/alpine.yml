@@ -1,11 +1,6 @@
 name: Build alpine rootfs
 on:
   workflow_dispatch:
-    inputs:
-      kernel_run_id:
-        description: 'Optional mainline kernel run ID; blank uses latest live checkpoint'
-        required: false
-        type: string
 permissions:
   contents: read
   actions: read
@@ -22,7 +17,6 @@ jobs:
       - name: Reuse kernel checkpoint and build alpine via shell
         env:
           GH_TOKEN: ${{ github.token }}
-          KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
         run: bash scripts/ci/build-rootfs.sh alpine
       - uses: actions/upload-artifact@v4
         with:

@@ -17,9 +17,9 @@ bash alpine/run.sh
 
 In GitHub Actions, this branch's workflow runs
 `bash scripts/ci/build-rootfs.sh alpine`, downloading a **successful existing**
-`mainline.yml` checkpoint from branch `main`. Optional input
-`kernel_run_id` pins the exact kernel build. With no ID, the latest usable
-mainline checkpoint is selected. If unavailable, the rootfs workflow fails.
+`mainline.yml` checkpoint from branch `main`. The newest successful
+kernel run with an unexpired checkpoint artifact is selected automatically;
+there is no run ID input. If none is available, the rootfs workflow fails.
 The YAML defines only triggers, permissions, invocation, and artifact uploads.
 
 **Run workflow: select the `alpine` branch**, not `main` or another distribution. This workflow reuses only a previously successful mainline kernel checkpoint; it does not compile or dispatch the kernel.
