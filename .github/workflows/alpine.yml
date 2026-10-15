@@ -1,20 +1,51 @@
-# UI registration only. The real alpine build is in the alpine branch.
-# GitHub requires workflow_dispatch YAML on the default branch.
+# Dispatch on main; use alpine branch's scripts and bundled firmware.
+# No kernel build/dispatch: the shell script fetches an existing mainline checkpoint.
 name: Build alpine rootfs
 on:
   workflow_dispatch:
     inputs:
       kernel_run_id:
-        description: 'Optional existing mainline kernel run ID'
+        description: 'Optional mainline kernel run ID; blank uses latest live checkpoint'
         required: false
         type: string
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: channel-alpine-rootfs
+  cancel-in-progress: true
 jobs:
-  wrong-branch:
+  rootfs:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
     steps:
-      - name: Select the alpine branch
-        run: |
-          echo "::error::Use Run workflow > Branch: alpine. The main branch is kernel-only."
-          exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: alpine
+      - name: Reuse kernel checkpoint and build alpine via shell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
+        run: bash scripts/ci/build-rootfs.sh alpine
+      - uses: actions/upload-artifact@v4
+        with:
+          name: channel-alpine-rootfs
+          path: |
+            out/rootfs/alpine/alpine-channel-rootfs.ext4.zst
+            out/rootfs/alpine/build-info.txt
+            out/rootfs/alpine/SHA256SUMS.alpine
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boot.img
+          path: out/rootfs/alpine/boot.img
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rootfs.ext4
+          path: out/rootfs/alpine/rootfs.ext4
+          if-no-files-found: error
+          retention-days: 14

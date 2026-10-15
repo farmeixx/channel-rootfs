@@ -1,20 +1,51 @@
-# UI registration only. The real ubuntu build is in the ubuntu branch.
-# GitHub requires workflow_dispatch YAML on the default branch.
+# Dispatch on main; use ubuntu branch's scripts and bundled firmware.
+# No kernel build/dispatch: the shell script fetches an existing mainline checkpoint.
 name: Build ubuntu rootfs
 on:
   workflow_dispatch:
     inputs:
       kernel_run_id:
-        description: 'Optional existing mainline kernel run ID'
+        description: 'Optional mainline kernel run ID; blank uses latest live checkpoint'
         required: false
         type: string
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: channel-ubuntu-rootfs
+  cancel-in-progress: true
 jobs:
-  wrong-branch:
+  rootfs:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
     steps:
-      - name: Select the ubuntu branch
-        run: |
-          echo "::error::Use Run workflow > Branch: ubuntu. The main branch is kernel-only."
-          exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: ubuntu
+      - name: Reuse kernel checkpoint and build ubuntu via shell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KERNEL_RUN_ID: ${{ inputs.kernel_run_id }}
+        run: bash scripts/ci/build-rootfs.sh ubuntu
+      - uses: actions/upload-artifact@v4
+        with:
+          name: channel-ubuntu-rootfs
+          path: |
+            out/rootfs/ubuntu/ubuntu-channel-rootfs.ext4.zst
+            out/rootfs/ubuntu/build-info.txt
+            out/rootfs/ubuntu/SHA256SUMS.ubuntu
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boot.img
+          path: out/rootfs/ubuntu/boot.img
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rootfs.ext4
+          path: out/rootfs/ubuntu/rootfs.ext4
+          if-no-files-found: error
+          retention-days: 14
