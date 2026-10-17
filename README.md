@@ -74,6 +74,28 @@ systemctl status usb-gadget.service usb-dhcp.service ssh.service
 From the USB host, connect via `ssh root@172.16.42.1`. A valid RNDIS-capable
 kernel/UDC is still required; file/service checks do not prove hardware boot.
 
+## Alpine 512 MiB ext4 image
+
+The Alpine builder now targets a **fixed 512 MiB uncompressed ext4 image**
+(`536870912` bytes). Zstandard download size will vary. Before writing the
+image, it drops only the disposable APK cache; installed Wi-Fi firmware, kernel
+modules, RNDIS, SSH and NetworkManager are unchanged. It provisions 16,384
+ext4 inodes and an 8 MiB journal (journaling remains enabled).
+
+After populating ext4, it runs `e2fsck`, inspects actual filesystem free
+blocks via `tune2fs`, and **fails the build if less than 32 MiB remain**.
+The metadata reports `image_size_mib`, `image_free_mib`,
+`image_min_free_mib`, and `staged_rootfs_mib`; final CI orchestration checks
+that the expanded Alpine `rootfs.ext4` is exactly 512 MiB. A size reduction
+cannot itself demonstrate runtime stability: the Channel must be rebooted and
+USB SSH / Wi-Fi retested with the newly built image. If this build fails the
+free-space guard, reduce installed footprint rather than bypassing it.
+
+Debian is **not resized**: the current builder uses
+`max(1536 MiB, staged_rootfs_MiB + 700 MiB)`. It has no measured minimum
+from a successful Debian CI build yet. Measure staged tree size and actual
+ext4 free space before considering a smaller target.
+
 ## Local builds
 
 On an x86_64 Linux host, make the `main` kernel checkpoint available at `out/kernel/checkpoint/` and run one of:

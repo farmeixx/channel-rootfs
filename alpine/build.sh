@@ -208,18 +208,45 @@ echo "::endgroup::"
 cleanup_apk_dev
 trap - EXIT
 
-echo "::group::Create ext4 rootfs image"
+echo "::group::Create 512 MiB Alpine ext4 rootfs image"
+# Remove apk's download/index cache, not installed packages, Wi-Fi firmware, or kernel modules.
+# The existing gadget, NetworkManager and SSH configuration are kept intact.
+if [ -d "$ROOTFS/var/cache/apk" ]; then
+  sudo find "$ROOTFS/var/cache/apk" -maxdepth 1 -type f -delete
+fi
+
 USED_MB="$(sudo du -sm "$ROOTFS" | awk '{print $1}')"
-IMAGE_MB=$((USED_MB + 512))
-if [ "$IMAGE_MB" -lt 1024 ]; then IMAGE_MB=1024; fi
+IMAGE_MB=512
+MIN_FREE_MB=32
+echo "Alpine staged rootfs: ${USED_MB} MiB; image target: ${IMAGE_MB} MiB; required free space: ${MIN_FREE_MB} MiB"
 
 ROOTFS_IMG="$OUT_DIR/alpine-channel-rootfs.ext4"
 truncate -s "${IMAGE_MB}M" "$ROOTFS_IMG"
-sudo mkfs.ext4 -F -m 0 -L "$ROOTFS_LABEL" -U random -d "$ROOTFS" "$ROOTFS_IMG"
+# 16k inodes (the last successful image had only ~3.8k files) and an 8 MiB
+# journal reduce ext4 metadata overhead without disabling journaling.
+sudo mkfs.ext4 -F -m 0 -N 16384 -J size=8 -L "$ROOTFS_LABEL" -U random -d "$ROOTFS" "$ROOTFS_IMG"
+test "$(stat -c %s "$ROOTFS_IMG")" -eq $((IMAGE_MB * 1024 * 1024))
 ROOTFS_EXT4_UUID="$(blkid -p -o value -s UUID "$ROOTFS_IMG")"
 test -n "$ROOTFS_EXT4_UUID"
 sudo e2fsck -fn "$ROOTFS_IMG"
 test "$(blkid -p -o value -s LABEL "$ROOTFS_IMG")" = "$ROOTFS_LABEL"
+
+# mkfs -d accounts for actual file data, inodes, journal and ext4 metadata:
+# unlike du alone, this prevents publishing a too-full image.
+FS_STATS="$(sudo tune2fs -l "$ROOTFS_IMG")"
+FREE_BLOCKS="$(printf '%s\n' "$FS_STATS" | awk -F: '$1 == "Free blocks" {gsub(/[[:space:]]/, "", $2); print $2}')"
+BLOCK_SIZE="$(printf '%s\n' "$FS_STATS" | awk -F: '$1 == "Block size" {gsub(/[[:space:]]/, "", $2); print $2}')"
+[[ "$FREE_BLOCKS" =~ ^[0-9]+$ && "$BLOCK_SIZE" =~ ^[0-9]+$ ]] || {
+  echo "ERROR: Could not inspect ext4 free blocks" >&2
+  exit 1
+}
+FREE_MB=$((FREE_BLOCKS * BLOCK_SIZE / 1024 / 1024))
+echo "Alpine ext4: ${IMAGE_MB} MiB total, ${FREE_MB} MiB free"
+if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
+  echo "ERROR: Alpine's 512 MiB image leaves only ${FREE_MB} MiB free (minimum ${MIN_FREE_MB} MiB)." >&2
+  echo "Reduce staged rootfs contents before building; refusing to publish a nearly-full image." >&2
+  exit 1
+fi
 zstd -T0 -10 -f "$ROOTFS_IMG" -o "$ROOTFS_IMG.zst"
 rm -f "$ROOTFS_IMG"
 echo "::endgroup::"
@@ -232,6 +259,10 @@ echo "::endgroup::"
   echo "kernel_release=$KREL"
   echo "rootfs_label=$ROOTFS_LABEL"
   echo "rootfs_uuid=$ROOTFS_EXT4_UUID"
+  echo "image_size_mib=$IMAGE_MB"
+  echo "image_free_mib=$FREE_MB"
+  echo "image_min_free_mib=$MIN_FREE_MB"
+  echo "staged_rootfs_mib=$USED_MB"
   echo "init=openrc"
   echo "usb_device_ip=172.16.42.1"
   echo "usb_dhcp_range=172.16.42.2-172.16.42.20"
