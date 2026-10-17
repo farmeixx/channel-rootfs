@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
 
-G=/sys/kernel/config/usb_gadget/channel
+G=/sys/kernel/config/usb_gadget/usb-gadget
 
 modprobe configfs 2>/dev/null || true
 modprobe libcomposite 2>/dev/null || true
-if ! /bin/busybox mountpoint -q /sys/kernel/config; then
+if ! mountpoint -q /sys/kernel/config; then
     mount -t configfs configfs /sys/kernel/config
 fi
 
@@ -39,24 +39,16 @@ printf '0x1d6b' > idVendor
 printf '0x0104' > idProduct
 printf '0x0200' > bcdUSB
 printf '0x0100' > bcdDevice
-
 printf '0xEF' > bDeviceClass
 printf '0x02' > bDeviceSubClass
 printf '0x01' > bDeviceProtocol
 
 mkdir -p strings/0x409
-SERIAL="$(
-    {
-        cat /sys/devices/soc0/serial_number 2>/dev/null ||
-        tr -d '\000' </proc/device-tree/serial-number 2>/dev/null ||
-        cat /etc/machine-id 2>/dev/null ||
-        true
-    } | tr -cd '0-9A-Za-z' | head -c 16
-)"
-[ -n "$SERIAL" ] || SERIAL=alpine
+SERIAL="$(sed -n '1{s/[^0-9A-Fa-f]//g;p;}' /etc/machine-id 2>/dev/null | cut -c1-16 || true)"
+[ -n "$SERIAL" ] || SERIAL=debian
 printf 'channel-%s' "$SERIAL" > strings/0x409/serialnumber
 printf 'Motorola Moto G7 Play Linux' > strings/0x409/manufacturer
-printf 'channel Alpine USB RNDIS' > strings/0x409/product
+printf 'channel Debian USB RNDIS' > strings/0x409/product
 
 printf '1' > os_desc/use
 printf '0xcd' > os_desc/b_vendor_code
@@ -80,7 +72,6 @@ fi
 
 ln -s functions/rndis.usb0 configs/c.1/rndis.usb0
 ln -s configs/c.1 os_desc/c.1
-
 printf '%s' "$UDC" > UDC
 
 i=0

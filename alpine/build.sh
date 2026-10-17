@@ -104,9 +104,9 @@ sudo cp -a "$REPO_ROOT/alpine/rootfs/." "$ROOTFS/"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
 sudo chmod 0755 \
-  "$ROOTFS/usr/local/sbin/channel-usb-gadget" \
-  "$ROOTFS/etc/init.d/channel-usb-gadget" \
-  "$ROOTFS/etc/init.d/channel-sshd"
+  "$ROOTFS/usr/local/sbin/usb-gadget" \
+  "$ROOTFS/etc/init.d/usb-gadget" \
+  "$ROOTFS/etc/init.d/usb-sshd"
 
 sudo install -d -m 0755 "$ROOTFS/etc/ssh/sshd_config.d"
 
@@ -143,7 +143,7 @@ done
 for service in hwdrivers modules sysctl hostname bootmisc syslog localmount; do
   sudo chroot "$ROOTFS" /sbin/rc-update add "$service" boot
 done
-for service in udev-postmount dbus channel-usb-gadget dnsmasq channel-sshd networkmanager; do
+for service in udev-postmount dbus usb-gadget dnsmasq usb-sshd networkmanager; do
   sudo chroot "$ROOTFS" /sbin/rc-update add "$service" default
 done
 
@@ -158,6 +158,9 @@ test -L "$ROOTFS/etc/runlevels/sysinit/udev"
 test -L "$ROOTFS/etc/runlevels/sysinit/udev-trigger"
 test -L "$ROOTFS/etc/runlevels/sysinit/udev-settle"
 test -L "$ROOTFS/etc/runlevels/default/udev-postmount"
+test -L "$ROOTFS/etc/runlevels/default/usb-gadget"
+test -L "$ROOTFS/etc/runlevels/default/usb-sshd"
+test -L "$ROOTFS/etc/runlevels/default/dnsmasq"
 test -L "$ROOTFS/etc/runlevels/default/networkmanager"
 test ! -e "$ROOTFS/etc/runlevels/sysinit/mdev"
 test ! -e "$ROOTFS/etc/runlevels/boot/networking"

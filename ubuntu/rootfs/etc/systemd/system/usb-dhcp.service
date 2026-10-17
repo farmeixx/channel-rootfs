@@ -1,7 +1,7 @@
 [Unit]
 Description=DHCP server for Moto G7 Play USB RNDIS link
-Requires=channel-usb-gadget.service
-After=channel-usb-gadget.service
+Requires=usb-gadget.service
+After=usb-gadget.service
 
 [Service]
 Type=simple

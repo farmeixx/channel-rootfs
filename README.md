@@ -22,6 +22,39 @@ bash scripts/ci/build-rootfs.sh alpine  # or debian / ubuntu
 
 Rootfs workflows reuse the latest **successful, unexpired** kernel checkpoint from `mainline.yml` on `main`. If none exists, they fail rather than starting a kernel build. The kernel builder and ccache remain on `main`.
 
+## Generic USB management service names
+
+The rootfs USB/RNDIS management components now use distro-neutral **service
+and script names**. This is a naming-only change for the Channel test:
+
+- All distros: `/usr/local/sbin/usb-gadget` (formerly `channel-usb-gadget`).
+- Alpine OpenRC: `usb-gadget`, `usb-sshd`; packaged `dnsmasq` reads
+  `/etc/dnsmasq-usb.conf` and depends on `usb-gadget`.
+- Debian/Ubuntu systemd: `usb-gadget.service` and `usb-dhcp.service`.
+  `ssh.service` requires `usb-gadget.service`, preserving startup order.
+- SSH configuration: `/etc/ssh/sshd_config.d/10-usb-ssh.conf`; Debian/Ubuntu
+  also install `/etc/systemd/system/ssh.service.d/10-usb.conf`.
+
+The ConfigFS gadget directory is now `/sys/kernel/config/usb_gadget/usb-gadget`.
+**Channel-specific USB descriptors, serial prefix, VID/PID, MAC addresses,
+RNDIS function, interface `usb0`, DHCP scope `172.16.42.2–20`, and
+`sshd` bind address `172.16.42.1` are unchanged.** There is no new USB
+protocol or driver. Firmware, kernel and main-branch Actions are unaffected.
+
+After testing on Channel:
+
+```sh
+ip -br addr show usb0
+# Alpine:
+rc-service usb-gadget status
+rc-service usb-sshd status
+# Debian/Ubuntu:
+systemctl status usb-gadget.service usb-dhcp.service ssh.service
+```
+
+From the USB host, connect via `ssh root@172.16.42.1`. A valid RNDIS-capable
+kernel/UDC is still required; file/service checks do not prove hardware boot.
+
 ## Local builds
 
 On an x86_64 Linux host, make the `main` kernel checkpoint available at `out/kernel/checkpoint/` and run one of:

@@ -8,6 +8,6 @@ respawn_delay=2
 respawn_max=0
 
 depend() {
-    need channel-usb-gadget
+    need usb-gadget
     after localmount
 }

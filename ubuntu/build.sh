@@ -100,7 +100,7 @@ echo "::group::Install channel headless configuration"
 sudo cp -a "$REPO_ROOT/ubuntu/rootfs/." "$ROOTFS/"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
-sudo chmod 0755 "$ROOTFS/usr/local/sbin/channel-usb-gadget"
+sudo chmod 0755 "$ROOTFS/usr/local/sbin/usb-gadget"
 
 if [ ! -s "$ROOTFS/etc/machine-id" ]; then
   openssl rand -hex 16 | sudo tee "$ROOTFS/etc/machine-id" >/dev/null
@@ -138,10 +138,12 @@ sudo ssh-keygen -A -f "$ROOTFS"
 sudo systemctl --root="$ROOTFS" disable ssh.socket 2>/dev/null || true
 sudo systemctl --root="$ROOTFS" disable dnsmasq.service 2>/dev/null || true
 sudo systemctl --root="$ROOTFS" enable \
-  channel-usb-gadget.service channel-dhcp.service \
+  usb-gadget.service usb-dhcp.service \
   NetworkManager.service dbus.socket
 
 sudo systemctl --root="$ROOTFS" enable ssh.service
+test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/usb-gadget.service"
+test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/usb-dhcp.service"
 
 
 # This device is intentionally headless. Persist the journal so boot/USB
