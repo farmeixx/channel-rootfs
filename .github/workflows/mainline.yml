@@ -11,8 +11,18 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPRESS: "true"
     steps:
       - uses: actions/checkout@v4
+      - name: Restore ARM64 compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: channel-arm64-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          restore-keys: |
+            channel-arm64-ccache-${{ runner.os }}-${{ runner.arch }}-
       - name: Build and validate the reusable kernel checkpoint
         run: bash mainline/run.sh
       - name: Identify kernel revision

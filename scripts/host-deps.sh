@@ -60,7 +60,7 @@ install_host_deps() {
   local packages=(git ca-certificates curl)
   case "$profile" in
     kernel)
-      packages+=(make bc bison flex gcc-aarch64-linux-gnu
+      packages+=(make bc bison flex ccache gcc-aarch64-linux-gnu
         libc6-dev-arm64-cross libc6-arm64-cross linux-libc-dev-arm64-cross
         device-tree-compiler libssl-dev libelf-dev dwarves python3 gzip zstd file)
       ;;
