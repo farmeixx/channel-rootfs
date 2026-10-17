@@ -193,17 +193,35 @@ sudo rm -f "$ROOTFS/usr/bin/qemu-aarch64-static"
 echo "::endgroup::"
 
 echo "::group::Create ext4 rootfs image"
+# Fixed initial ext4 capacity. The user expands / on userdata with resize2fs.
+# A smaller image is only published if ext4 itself reports safe free space.
 USED_MB="$(sudo du -sm "$ROOTFS" | awk '{print $1}')"
-IMAGE_MB=$((USED_MB + 700))
-if [ "$IMAGE_MB" -lt 1536 ]; then IMAGE_MB=1536; fi
+IMAGE_MB=1024
+MIN_FREE_MB=64
+echo "ubuntu: staged rootfs ${USED_MB} MiB; target ${IMAGE_MB} MiB; minimum free ${MIN_FREE_MB} MiB"
 
 ROOTFS_IMG="$OUT_DIR/ubuntu-channel-rootfs.ext4"
 truncate -s "${IMAGE_MB}M" "$ROOTFS_IMG"
-sudo mkfs.ext4 -F -m 0 -L "$ROOTFS_LABEL" -U random -d "$ROOTFS" "$ROOTFS_IMG"
+# Preserve journaling; a realistic inode budget avoids the oversized default table.
+sudo mkfs.ext4 -F -m 0 -N 32768 -J size=16 -L "$ROOTFS_LABEL" -U random -d "$ROOTFS" "$ROOTFS_IMG"
+test "$(stat -c %s "$ROOTFS_IMG")" -eq $((IMAGE_MB * 1024 * 1024))
 ROOTFS_EXT4_UUID="$(blkid -p -o value -s UUID "$ROOTFS_IMG")"
 test -n "$ROOTFS_EXT4_UUID"
 sudo e2fsck -fn "$ROOTFS_IMG"
 test "$(blkid -p -o value -s LABEL "$ROOTFS_IMG")" = "$ROOTFS_LABEL"
+FS_STATS="$(sudo tune2fs -l "$ROOTFS_IMG")"
+FREE_BLOCKS="$(printf '%s\n' "$FS_STATS" | awk -F: '$1 == "Free blocks" {gsub(/[[:space:]]/, "", $2); print $2}')"
+BLOCK_SIZE="$(printf '%s\n' "$FS_STATS" | awk -F: '$1 == "Block size" {gsub(/[[:space:]]/, "", $2); print $2}')"
+[[ "$FREE_BLOCKS" =~ ^[0-9]+$ && "$BLOCK_SIZE" =~ ^[0-9]+$ ]] || {
+  echo "ERROR: Unable to read ext4 free-space metadata" >&2
+  exit 1
+}
+FREE_MB=$((FREE_BLOCKS * BLOCK_SIZE / 1024 / 1024))
+echo "ubuntu: ext4 ${IMAGE_MB} MiB total, ${FREE_MB} MiB free"
+if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
+  echo "ERROR: ubuntu rootfs cannot safely fit in ${IMAGE_MB} MiB; only ${FREE_MB} MiB free (requires ${MIN_FREE_MB})." >&2
+  exit 1
+fi
 zstd -T0 -10 -f "$ROOTFS_IMG" -o "$ROOTFS_IMG.zst"
 rm -f "$ROOTFS_IMG"
 echo "::endgroup::"
@@ -215,6 +233,10 @@ echo "::endgroup::"
   echo "kernel_release=$KREL"
   echo "rootfs_label=$ROOTFS_LABEL"
   echo "rootfs_uuid=$ROOTFS_EXT4_UUID"
+  echo "image_size_mib=$IMAGE_MB"
+  echo "image_free_mib=$FREE_MB"
+  echo "image_min_free_mib=$MIN_FREE_MB"
+  echo "staged_rootfs_mib=$USED_MB"
   echo "usb_device_ip=172.16.42.1"
   echo "usb_dhcp_range=172.16.42.2-172.16.42.20"
   echo "ssh_auth=ssh"

@@ -40,12 +40,14 @@ zstd -d -f "$SOURCE" -o "$OUT_DIR/rootfs.ext4"
 [ "$(blkid -p -o value -s TYPE "$OUT_DIR/rootfs.ext4")" = ext4 ] || {
   echo 'ERROR: Expanded rootfs is not ext4.' >&2; exit 1;
 }
-if [ "$DISTRO" = alpine ]; then
-  grep -Fxq 'image_size_mib=512' "$OUT_DIR/build-info.txt"
-  [ "$(stat -c %s "$OUT_DIR/rootfs.ext4")" -eq $((512 * 1024 * 1024)) ] || {
-    echo 'ERROR: Alpine rootfs is not exactly 512 MiB.' >&2
-    exit 1
-  }
-fi
+case "$DISTRO" in
+  alpine) REQUIRED_IMAGE_MB=512 ;;
+  debian|ubuntu) REQUIRED_IMAGE_MB=1024 ;;
+esac
+grep -Fxq "image_size_mib=$REQUIRED_IMAGE_MB" "$OUT_DIR/build-info.txt"
+[ "$(stat -c %s "$OUT_DIR/rootfs.ext4")" -eq $((REQUIRED_IMAGE_MB * 1024 * 1024)) ] || {
+  echo "ERROR: $DISTRO rootfs is not exactly $REQUIRED_IMAGE_MB MiB." >&2
+  exit 1
+}
 (cd "$OUT_DIR" && sha256sum boot.img rootfs.ext4 > SHA256SUMS.images)
 printf '\n%s rootfs build complete.\n  Files: %s\n' "$DISTRO" "$OUT_DIR"

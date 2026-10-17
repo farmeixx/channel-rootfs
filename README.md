@@ -91,10 +91,12 @@ cannot itself demonstrate runtime stability: the Channel must be rebooted and
 USB SSH / Wi-Fi retested with the newly built image. If this build fails the
 free-space guard, reduce installed footprint rather than bypassing it.
 
-Debian is **not resized**: the current builder uses
-`max(1536 MiB, staged_rootfs_MiB + 700 MiB)`. It has no measured minimum
-from a successful Debian CI build yet. Measure staged tree size and actual
-ext4 free space before considering a smaller target.
+Debian and Ubuntu now target **1,024 MiB** of uncompressed ext4 each,
+with 32,768 inodes, a 16 MiB journal and a **64 MiB minimum free-space guard**
+after population. The CI checks their exact ext4 sizes. These are size
+targets, **not measured minimums**: if either distro cannot fit, its build
+fails rather than publishing a truncated or unsafe image. Successful Channel
+hardware validation to date covers Alpine; Debian/Ubuntu still need testing.
 
 ## Local builds
 
