@@ -1,3 +1,14 @@
+# GitLab-first firmware selection
+
+The builder now prefers the upstream [Channel firmware repository](https://gitlab.com/vanadium-oss/motorola-msm8953/mainline/channel-firmware), but the complete WCNSS files are still listed as pending there. To avoid breaking working Wi-Fi, the SH keeps a **verified bundled fallback**.
+
+- `CHANNEL_FIRMWARE_SOURCE=auto` (default): use GitLab only if its WCNSS segments and base NV pass the existing SHA-256 checks; otherwise use bundled firmware.
+- `CHANNEL_FIRMWARE_SOURCE=gitlab`: strictly require GitLab, and fail if WCNSS is missing or differs.
+- `CHANNEL_FIRMWARE_SOURCE=bundled`: use verified offline bundle without remote access.
+- Optional `CHANNEL_FIRMWARE_URL` and `CHANNEL_FIRMWARE_REF` select the repository and revision.
+
+Put WCNSS parts under `wlan/wcnss/` in the GitLab repository and use the existing `wlan/WCNSS_qcom_wlan_nv.bin` base NV. Existing hashes must match `firmware/channel/SHA256SUMS`, including reconstructed `wcnss.b06`. The regional NV, GPU and touchscreen firmware are not substituted for the working WCNSS set. The old bundled firmware can be deleted **only after** a successful CI run using `CHANNEL_FIRMWARE_SOURCE=gitlab`.
+
 # Motorola Moto G7 Play (`channel`) WCNSS firmware
 
 Firmware used in the Wi-Fi test on `channel` (mainline kernel 7.3.0-rc7).
