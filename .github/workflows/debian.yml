@@ -1,4 +1,4 @@
-# Dispatch on main; use debian branch's scripts and bundled firmware.
+# Dispatch on main; use the unified rootfs branch's debian scripts and shared firmware.
 # No kernel build/dispatch: the shell script fetches an existing mainline checkpoint.
 name: Build debian rootfs
 on:
@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: debian
+          ref: rootfs
       - name: Reuse kernel checkpoint and build debian via shell
         env:
           GH_TOKEN: ${{ github.token }}

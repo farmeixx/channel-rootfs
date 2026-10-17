@@ -1,4 +1,4 @@
-# Dispatch on main; use ubuntu branch's scripts and bundled firmware.
+# Dispatch on main; use the unified rootfs branch's ubuntu scripts and shared firmware.
 # No kernel build/dispatch: the shell script fetches an existing mainline checkpoint.
 name: Build ubuntu rootfs
 on:
@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ubuntu
+          ref: rootfs
       - name: Reuse kernel checkpoint and build ubuntu via shell
         env:
           GH_TOKEN: ${{ github.token }}
