@@ -1,6 +1,6 @@
 # Moto G7 Play (channel) — guia rápido
 
-Este branch **help** é somente para consulta. Para compilar, use a branch `main` (build automática) ou `manual-deps` (dependências do host instaladas por você).
+Este branch **help** é somente para consulta. Para compilar via GitHub Actions, selecione a branch `main`; os workflows usam os scripts da branch `rootfs`. A branch `help` contém somente instruções.
 
 ## Arquivos de build
 
@@ -13,6 +13,13 @@ No **Actions**, o workflow **Build mainline kernel** fornece o kernel, DTB, boot
 | Ubuntu | `ubuntu-channel-rootfs.ext4.zst` |
 
 Use sempre os módulos correspondentes ao kernel do mesmo checkpoint.
+
+**Capacidades iniciais do ext4 descompactado:** Alpine **512 MiB**; Debian e
+Ubuntu **1.024 MiB**. O tamanho dos arquivos `.zst` é menor e varia conforme
+a compressão. Os builders verificam espaço livre antes de publicar: mínimo
+de 32 MiB no Alpine e 64 MiB no Debian/Ubuntu. Caso não caiba, a build
+falha. Os tamanhos reduzidos ainda precisam de validação nas Actions e
+no aparelho.
 
 ## Conectar por SSH (USB)
 
@@ -68,5 +75,5 @@ df -h /
 ## Referência
 
 - Formato do rootfs: **ext4** (imagem bruta compactada com zstd).
-- UUID ext4 usado pelo projeto: `89530000-6320-4000-8000-000000000001`.
+- UUID ext4: gerado a cada compilação (`mkfs.ext4 -U random`); consulte `build-info.txt` do artefato correspondente.
 - Projeto de builds: [branch main](https://github.com/farmeixx/channel-rootfs/tree/main).
