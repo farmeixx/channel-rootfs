@@ -60,7 +60,7 @@ active_matches() {
     [ "$(read_attr "$G/strings/0x409/serialnumber")" = "$SERIAL" ]
 }
 
-# Only clean *unbound* Channel-owned gadget directories. ConfigFS virtual
+# Only clean *unbound* gadget directories owned by this service. ConfigFS virtual
 # attributes disappear on rmdir and must not be manually removed.
 cleanup_unbound() {
     [ -d "$G" ] || return 0
