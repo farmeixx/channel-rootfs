@@ -103,8 +103,12 @@ echo "::group::Install Channel Alpine headless configuration"
 sudo cp -a "$REPO_ROOT/alpine/rootfs/." "$ROOTFS/"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
+# One shared RNDIS implementation + Channel-specific configuration for all distros.
+sudo install -D -m 0755 "$REPO_ROOT/scripts/usb/usb-gadget" "$ROOTFS/usr/local/sbin/usb-gadget"
+sudo install -m 0644 "$REPO_ROOT/scripts/usb/channel.conf" "$ROOTFS/etc/usb-gadget.conf"
+test -x "$ROOTFS/usr/local/sbin/usb-gadget"
+test -s "$ROOTFS/etc/usb-gadget.conf"
 sudo chmod 0755 \
-  "$ROOTFS/usr/local/sbin/usb-gadget" \
   "$ROOTFS/etc/init.d/usb-gadget" \
   "$ROOTFS/etc/init.d/usb-sshd"
 

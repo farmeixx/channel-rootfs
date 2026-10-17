@@ -100,7 +100,11 @@ echo "::group::Install channel headless configuration"
 sudo cp -a "$REPO_ROOT/ubuntu/rootfs/." "$ROOTFS/"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
-sudo chmod 0755 "$ROOTFS/usr/local/sbin/usb-gadget"
+# One shared RNDIS implementation + Channel-specific configuration for all distros.
+sudo install -D -m 0755 "$REPO_ROOT/scripts/usb/usb-gadget" "$ROOTFS/usr/local/sbin/usb-gadget"
+sudo install -m 0644 "$REPO_ROOT/scripts/usb/channel.conf" "$ROOTFS/etc/usb-gadget.conf"
+test -x "$ROOTFS/usr/local/sbin/usb-gadget"
+test -s "$ROOTFS/etc/usb-gadget.conf"
 
 if [ ! -s "$ROOTFS/etc/machine-id" ]; then
   openssl rand -hex 16 | sudo tee "$ROOTFS/etc/machine-id" >/dev/null

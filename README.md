@@ -35,6 +35,25 @@ and script names**. This is a naming-only change for the Channel test:
 - SSH configuration: `/etc/ssh/sshd_config.d/10-usb-ssh.conf`; Debian/Ubuntu
   also install `/etc/systemd/system/ssh.service.d/10-usb.conf`.
 
+**Shared ConfigFS implementation:** instead of three separately maintained gadget
+scripts, every distro installs the same
+`scripts/usb/usb-gadget` into `/usr/local/sbin/usb-gadget` and the same
+`scripts/usb/channel.conf` into `/etc/usb-gadget.conf`. The script reads
+device identity, USB MACs, fixed RNDIS interface and management address from
+this root-owned file. Alpine / Debian / Ubuntu product strings are derived
+from `/etc/os-release`, preserving the original USB descriptors.
+
+A second start of an already-matching active gadget **does not rebind its
+UDC or flush the network address**. Conflicting active settings are rejected
+without disconnecting SSH. An unbound incomplete gadget is cleaned before
+recreation. The runtime resolves the netdev from the RNDIS `ifname` attribute
+or its MAC and fails clearly if it is not `usb0`, because DHCP and
+NetworkManager intentionally use that fixed name.
+
+**Validation:** tested with a simulated ConfigFS/UDC/netdev for first start,
+second start, conflicting active settings and missing UDC. This does not
+replace a real Channel boot + USB/RNDIS/SSH hardware test.
+
 The ConfigFS gadget directory is now `/sys/kernel/config/usb_gadget/usb-gadget`.
 **Channel-specific USB descriptors, serial prefix, VID/PID, MAC addresses,
 RNDIS function, interface `usb0`, DHCP scope `172.16.42.2–20`, and
