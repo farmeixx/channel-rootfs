@@ -38,6 +38,11 @@ git clone --depth=1 --branch "$KERNEL_REF" "$KERNEL_URL" "$KERNEL_DIR"
 printf 'kernel_url=%s\nkernel_ref=%s\nkernel_source_sha=%s\n' "$KERNEL_URL" "$KERNEL_REF" "$SOURCE_SHA" > "$STAGING/source-report.txt"
 export KERNEL_DIR OUT_DIR="$STAGING"
 bash "$ROOT/mainline/build.sh"
+# Record the exact GitLab platform fragment applied to the generated kernel.config.
+test -s "$STAGING/msm8953.config"
+printf 'kernel_config_fragments=msm8953.config\n' >> "$STAGING/source-report.txt"
+printf 'msm8953_config_sha256=%s\n' \
+  "$(sha256sum "$STAGING/msm8953.config" | awk '{print $1}')" >> "$STAGING/source-report.txt"
 KREL="$(cat "$STAGING/kernel-release.txt")"
 
 # Prepare the identical, pinned AOSP mkbootimg revision as the old workflow.
@@ -69,7 +74,7 @@ printf 'root_device=%s\n' "$CHANNEL_ROOT_DEVICE" >> "$STAGING/kernel-info.txt"
 (
   cd "$STAGING"
   sha256sum boot-channel.img Image.gz Image.gz-dtb sdm632-motorola-channel.dtb \
-    kernel.config System.map kernel-release.txt kernel-modules-*.tar.zst > SHA256SUMS
+    kernel.config msm8953.config System.map kernel-release.txt kernel-modules-*.tar.zst > SHA256SUMS
 )
 # Verify the complete new checkpoint BEFORE replacing an older valid one.
 KERNEL_CHECKPOINT_DIR="$STAGING" bash "$ROOT/scripts/kernel/validate.sh" --full
