@@ -10,9 +10,21 @@ cd "$KERNEL_DIR"
 mkdir -p "$OUT_DIR"
 
 echo "::group::Configure kernel"
+# The GitLab kernel ships MSM8953 platform options as a Kconfig fragment,
+# not as a standalone make defconfig target. Apply it to the ARM64 base config.
+MSM8953_CONFIG="arch/arm64/configs/msm8953.config"
+test -s "$MSM8953_CONFIG" || {
+  echo "Missing upstream MSM8953 config fragment: $MSM8953_CONFIG" >&2
+  exit 1
+}
+test -f scripts/kconfig/merge_config.sh || {
+  echo 'Missing Kconfig merge helper.' >&2
+  exit 1
+}
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
-# The MSM8953 CPR4PD driver is needed by the CPU OPP power domains.
-# defconfig alone does not enable it; keep the change limited to this builder.
+ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+  bash scripts/kconfig/merge_config.sh -m .config "$MSM8953_CONFIG"
+# Keep CPR4PD built in for MSM8953 CPU OPP power domains.
 scripts/config --enable QCOM_CPR4PD
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
@@ -105,6 +117,7 @@ cp arch/arm64/boot/Image.gz "$OUT_DIR/Image.gz"
 cp arch/arm64/boot/Image.gz "$OUT_DIR/Image.gz-$KREL"
 cp "$DTB" "$OUT_DIR/sdm632-motorola-channel.dtb"
 cp .config "$OUT_DIR/kernel.config"
+cp "$MSM8953_CONFIG" "$OUT_DIR/msm8953.config"
 cp System.map "$OUT_DIR/System.map"
 printf '%s\n' "$KREL" > "$OUT_DIR/kernel-release.txt"
 git rev-parse HEAD > "$OUT_DIR/kernel-git-revision.txt"
