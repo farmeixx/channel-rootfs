@@ -87,7 +87,9 @@ sudo chroot "$ROOTFS" /bin/sh -ec '
     kmod busybox-static \
     e2fsprogs util-linux procps \
     less nano ethtool iw \
-    wpasupplicant wireless-regdb
+    wpasupplicant wireless-regdb \
+    alsa-utils alsa-ucm-conf libasound2-plugins \
+    pulseaudio pulseaudio-utils
   apt-get clean
   rm -rf /var/lib/apt/lists/*
 '
