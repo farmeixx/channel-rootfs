@@ -7,6 +7,9 @@ MANIFEST="$BUNDLED/SHA256SUMS"
 SOURCE="$BUNDLED"
 ACTION="${1:-check}"
 FW=(wcnss.mdt wcnss.b00 wcnss.b01 wcnss.b02 wcnss.b04 wcnss.b09 wcnss.b10 wcnss.b11 wcnss.b12)
+ADSP=(adsp.mdt adsp.b{00..14})
+ADSP_SOURCE=""
+GITLAB_CHECKOUT=""
 NV=WCNSS_qcom_wlan_nv.bin
 PARTS=(wcnss.b06.xz.part00 wcnss.b06.xz.part01 wcnss.b06.xz.part02)
 B06_HASH=f83da41610b4b2b24e176b4536bfe6c4f8fca7d46d5a0cc7694ba12e89213376
@@ -23,13 +26,11 @@ verify_source() {
   [ "$got" = "$B06_HASH" ] || return 1
 }
 
-try_gitlab() {
+checkout_gitlab() {
   command -v git >/dev/null && command -v timeout >/dev/null || return 1
   local checkout="$ROOT/.work/firmware/channel-gitlab"
-  local staged="$ROOT/.work/firmware/channel-gitlab-selected"
   local url="${CHANNEL_FIRMWARE_URL:-https://gitlab.com/vanadium-oss/motorola-msm8953/mainline/channel-firmware.git}"
   local ref="${CHANNEL_FIRMWARE_REF:-}"
-  local dir f nv
   if [ ! -d "$checkout/.git" ]; then
     mkdir -p "$(dirname "$checkout")"
     rm -rf "$checkout"
@@ -39,6 +40,14 @@ try_gitlab() {
       GIT_TERMINAL_PROMPT=0 timeout 35s git clone -q --depth 1 "$url" "$checkout" || return 1
     fi
   fi
+  GITLAB_CHECKOUT="$checkout"
+}
+
+try_gitlab() {
+  checkout_gitlab || return 1
+  local checkout="$GITLAB_CHECKOUT"
+  local staged="$ROOT/.work/firmware/channel-gitlab-selected"
+  local dir f nv
   for dir in "$checkout/wlan/wcnss" "$checkout/wcnss" "$checkout/firmware/channel"; do
     [ -s "$dir/wcnss.mdt" ] || continue
     rm -rf "$staged"
@@ -58,16 +67,29 @@ try_gitlab() {
   return 1
 }
 
+select_adsp() {
+  checkout_gitlab || { echo 'ERROR: Cannot fetch Channel ADSP firmware from GitLab.' >&2; return 1; }
+  local dir="$GITLAB_CHECKOUT/modem" f expected actual
+  for f in "${ADSP[@]}"; do
+    [ -s "$dir/$f" ] || { echo "ERROR: Channel ADSP firmware missing: modem/$f" >&2; return 1; }
+    expected="$(git -C "$GITLAB_CHECKOUT" rev-parse --verify "HEAD:modem/$f")" || return 1
+    actual="$(git -C "$GITLAB_CHECKOUT" hash-object "$dir/$f")" || return 1
+    [ "$actual" = "$expected" ] || { echo "ERROR: Channel ADSP firmware differs from GitLab commit: modem/$f" >&2; return 1; }
+  done
+  ADSP_SOURCE="$dir"
+}
+
 check() {
   case "${CHANNEL_FIRMWARE_SOURCE:-auto}" in
     auto)
-      if try_gitlab; then return 0; fi
-      verify_source "$BUNDLED" || {
-        echo 'ERROR: GitLab WCNSS incomplete/unavailable and verified bundled firmware missing.' >&2
-        return 1
-      }
-      SOURCE="$BUNDLED"
-      echo 'Using verified bundled WCNSS firmware (GitLab does not provide a complete matching set yet).'
+      if ! try_gitlab; then
+        verify_source "$BUNDLED" || {
+          echo 'ERROR: GitLab WCNSS incomplete/unavailable and verified bundled firmware missing.' >&2
+          return 1
+        }
+        SOURCE="$BUNDLED"
+        echo 'Using verified bundled WCNSS firmware (GitLab does not provide a complete matching set yet).'
+      fi
       ;;
     gitlab)
       try_gitlab || {
@@ -84,6 +106,7 @@ check() {
       return 2
       ;;
   esac
+  select_adsp
 }
 
 case "$ACTION" in
@@ -104,7 +127,12 @@ case "$ACTION" in
     sudo install -m 0644 "$SOURCE/$NV" "$DEST/qcom/msm8953/motorola/channel/$NV"
     sudo cmp "$SOURCE/$NV" "$DEST/wlan/prima/$NV"
     sudo cmp "$SOURCE/$NV" "$DEST/qcom/msm8953/motorola/channel/$NV"
+    for f in "${ADSP[@]}"; do
+      sudo install -m 0644 "$ADSP_SOURCE/$f" "$DEST/$f"
+      sudo cmp "$ADSP_SOURCE/$f" "$DEST/$f"
+    done
     echo "Channel WCNSS firmware installed from $SOURCE into $DEST"
+    echo "Channel ADSP firmware installed from $ADSP_SOURCE into $DEST"
     ;;
   *) echo 'Usage: channel.sh check | install TARGET_ROOTFS' >&2; exit 2 ;;
 esac
