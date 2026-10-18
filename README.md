@@ -1,7 +1,7 @@
 # Motorola Moto G7 Play (channel) rootfs
 
-The **rootfs** branch builds Alpine, Debian and Ubuntu using an existing mainline
-kernel checkpoint. Firmware is stored locally as the complete Channel source
+The **rootfs** branch builds Alpine, Debian and Ubuntu from the organized
+`distros/` directory, reusing an existing mainline kernel checkpoint. Firmware is stored locally as the complete Channel source
 archive and installed by the shared script.
 
 ## Organized layout
@@ -21,13 +21,14 @@ sh/
 common/
   rootfs/                    # Shared NetworkManager configuration (all 3)
   systemd/rootfs/            # Shared services and SSH config (Debian & Ubuntu)
-alpine/
-  build.sh                   # Alpine-specific builder
-  rootfs/                    # OpenRC and Alpine-specific overlay
-debian/
-  build.sh                   # Debian-specific builder
-ubuntu/
-  build.sh                   # Ubuntu-specific builder
+distros/
+  alpine/
+    build.sh                 # Alpine-specific builder
+    rootfs/                  # OpenRC and Alpine overlay
+  debian/
+    build.sh                 # Debian-specific builder
+  ubuntu/
+    build.sh                 # Ubuntu-specific builder
 audio/rootfs/                # ALSA UCM and PulseAudio initialization
 firmware/channel/source/     # All imported modem, WCNSS, ADSP, GPU, touchscreen, NV
 docs/firmware.md             # Firmware details

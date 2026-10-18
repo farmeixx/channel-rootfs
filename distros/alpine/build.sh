@@ -16,7 +16,7 @@ ALPINE_MIRROR="${ALPINE_MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 ALPINE_ARCH="${ALPINE_ARCH:-aarch64}"
 APK_TOOLS_STATIC_VERSION="${APK_TOOLS_STATIC_VERSION:-3.0.8-r0}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK_DIR="${WORK_DIR:-$REPO_ROOT/.work}"
 ROOTFS="$WORK_DIR/rootfs"
 KREL="$KERNEL_RELEASE"
@@ -102,7 +102,7 @@ sudo chroot "$ROOTFS" /usr/sbin/update-ca-certificates
 echo "::endgroup::"
 
 echo "::group::Install Channel Alpine headless configuration"
-sudo cp -a "$REPO_ROOT/alpine/rootfs/." "$ROOTFS/"
+sudo cp -a "$REPO_ROOT/distros/alpine/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/common/rootfs/." "$ROOTFS/"
 # Install the same Channel-specific UCM2 headphone profile on every distribution.
 sudo cp -a "$REPO_ROOT/audio/rootfs/." "$ROOTFS/"

@@ -24,7 +24,7 @@ export KERNEL_MODULES_ARCHIVE="$CHECKPOINT/kernel-modules-$KREL.tar.zst"
 export KERNEL_CONFIG_FILE="$CHECKPOINT/kernel.config"
 export KERNEL_SYSTEM_MAP_FILE="$CHECKPOINT/System.map"
 export WORK_DIR OUT_DIR
-bash "$ROOT/$DISTRO/build.sh"
+bash "$ROOT/distros/$DISTRO/build.sh"
 
 SOURCE="$OUT_DIR/$DISTRO-channel-rootfs.ext4.zst"
 [ -s "$SOURCE" ] || { echo "ERROR: Missing rootfs image: $SOURCE" >&2; exit 1; }
