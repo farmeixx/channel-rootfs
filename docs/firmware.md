@@ -1,8 +1,8 @@
 # Firmware source and installation
 
-Device-specific configuration: [firmware/channel/firmware.conf](firmware/channel/firmware.conf).
+Device-specific configuration: [conf/firmware.conf](../conf/firmware.conf).
 
-The shared [scripts/firmware/install.sh](scripts/firmware/install.sh) reads
+The shared [sh/firmware.sh](../sh/firmware.sh) reads
 `FIRMWARE_URL`, optional `FIRMWARE_REF`, directory mappings and aliases.
 It clones the complete `channel-firmware` repository, checks its SHA256SUMS
 when present, copies **every firmware file** in the configured directories,
@@ -22,8 +22,8 @@ is stored in this rootfs branch.
 
 Example:
 ```sh
-bash scripts/firmware/install.sh check
-bash scripts/firmware/install.sh install /path/to/staged/rootfs
+bash sh/firmware.sh check
+bash sh/firmware.sh install /path/to/staged/rootfs
 ```
 
 Firmware mapping for Channel:

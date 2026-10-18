@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Generic firmware importer: all device-specific paths live in firmware.conf.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ACTION="${1:-check}"
 case "$ACTION" in
   check|install) ;;
@@ -12,7 +12,7 @@ if [ "$ACTION" = install ] && { [ "$#" -lt 2 ] || [ ! -d "$2" ] || [ "$2" = / ];
   exit 2
 fi
 
-CONF="${FIRMWARE_CONFIG:-$ROOT/firmware/channel/firmware.conf}"
+CONF="${FIRMWARE_CONFIG:-$ROOT/conf/firmware.conf}"
 test -s "$CONF" || { echo "Missing firmware.conf: $CONF" >&2; exit 1; }
 # Configuration is trusted and versioned with the project.
 source "$CONF"

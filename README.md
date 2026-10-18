@@ -1,162 +1,67 @@
-# Moto G7 Play (channel) — unified rootfs builders
+# Motorola Moto G7 Play (channel) rootfs
 
-This `rootfs` branch contains **Alpine, Debian and Ubuntu** for Channel. The three distro builders have independent directories; common tooling and the Channel firmware are shared once.
+The **rootfs** branch builds Alpine, Debian and Ubuntu using an existing mainline
+kernel checkpoint. Firmware is stored locally as the complete Channel source
+archive and installed by the shared script.
 
-## Layout
+## Organized layout
 
-- `alpine/build.sh`, `alpine/run.sh`, `alpine/rootfs/`: Alpine builder and overlays.
-- `debian/build.sh`, `debian/run.sh`, `debian/rootfs/`: Debian builder and overlays.
-- `ubuntu/build.sh`, `ubuntu/run.sh`, `ubuntu/rootfs/`: Ubuntu builder and overlays.
-- `scripts/ci/build-rootfs.sh`: selects one distribution, then reuses an existing kernel checkpoint.
-- `scripts/ci/fetch-kernel.sh`: downloads the newest successful unexpired kernel checkpoint from the **main** branch. Never dispatches or rebuilds a kernel.
-- `scripts/rootfs/run.sh`, `scripts/host-deps.sh`, `scripts/kernel/validate.sh`: shared rootfs build support.
-- `firmware/channel/firmware.conf`: Channel-specific firmware source, directory and alias mapping. `scripts/firmware/install.sh` clones the full firmware repository and installs it for all three distros.
-
-## GitHub Actions
-
-Select **Build alpine rootfs**, **Build debian rootfs**, or **Build ubuntu rootfs** from the repository Actions tab, using branch **main**. Their lightweight YAML entry points live on `main`, check out this `rootfs` branch, and call:
-
-```bash
-bash scripts/ci/build-rootfs.sh alpine  # or debian / ubuntu
+```text
+conf/
+  firmware.conf              # Source, destination and per-driver firmware aliases
+  usb.conf                   # USB RNDIS and SSH device identity
+sh/
+  build.sh                   # CI entry: fetch an existing kernel checkpoint
+  fetch-kernel.sh            # Find/download successful mainline artifact
+  run.sh                     # Orchestrate an individual distro build
+  validate.sh                # Check reused Channel kernel checkpoint
+  firmware.sh                # Install full firmware tree from conf/
+  usb-gadget                 # RNDIS ConfigFS implementation installed in rootfs
+  deps.sh                    # Build machine requirements
+common/
+  rootfs/                    # Shared NetworkManager configuration (all 3)
+  systemd/rootfs/            # Shared services and SSH config (Debian & Ubuntu)
+alpine/
+  build.sh                   # Alpine-specific builder
+  rootfs/                    # OpenRC and Alpine-specific overlay
+debian/
+  build.sh                   # Debian-specific builder
+ubuntu/
+  build.sh                   # Ubuntu-specific builder
+audio/rootfs/                # ALSA UCM and PulseAudio initialization
+firmware/channel/source/     # All imported modem, WCNSS, ADSP, GPU, touchscreen, NV
+docs/firmware.md             # Firmware details
 ```
 
-Rootfs workflows reuse the latest **successful, unexpired** kernel checkpoint from `mainline.yml` on `main`. If none exists, they fail rather than starting a kernel build. The kernel builder and ccache remain on `main`.
+## Building
 
-## Generic USB management service names
+Run **Build alpine rootfs**, **Build debian rootfs**, or **Build ubuntu rootfs**
+from the main branch GitHub Actions tab. They check out this `rootfs` branch
+and run `bash sh/build.sh DISTRO`.
 
-The rootfs USB/RNDIS management components now use distro-neutral **service
-and script names**. This is a naming-only change for the Channel test:
+A rootfs job never compiles or dispatches the kernel. It downloads the newest
+successful and unexpired `mainline.yml` checkpoint, then validates it.
 
-- All distros: `/usr/local/sbin/usb-gadget` (formerly `channel-usb-gadget`).
-- Alpine OpenRC: `usb-gadget`, `usb-sshd`; packaged `dnsmasq` reads
-  `/etc/dnsmasq-usb.conf` and depends on `usb-gadget`.
-- Debian/Ubuntu systemd: `usb-gadget.service` and `usb-dhcp.service`.
-  `ssh.service` requires `usb-gadget.service`, preserving startup order.
-- SSH configuration: `/etc/ssh/sshd_config.d/10-usb-ssh.conf`; Debian/Ubuntu
-  also install `/etc/systemd/system/ssh.service.d/10-usb.conf`.
-
-**Shared ConfigFS implementation:** instead of three separately maintained gadget
-scripts, every distro installs the same
-`scripts/usb/usb-gadget` into `/usr/local/sbin/usb-gadget` and the same
-`scripts/usb/channel.conf` into `/etc/usb-gadget.conf`. The script reads
-device identity, USB MACs, fixed RNDIS interface and management address from
-this root-owned file. Alpine / Debian / Ubuntu product strings are derived
-from `/etc/os-release`, preserving the original USB descriptors.
-
-A second start of an already-matching active gadget **does not rebind its
-UDC or flush the network address**. Conflicting active settings are rejected
-without disconnecting SSH. An unbound incomplete gadget is cleaned before
-recreation. The runtime resolves the netdev from the RNDIS `ifname` attribute
-or its MAC and fails clearly if it is not `usb0`, because DHCP and
-NetworkManager intentionally use that fixed name.
-
-**Validation:** tested with a simulated ConfigFS/UDC/netdev for first start,
-second start, conflicting active settings and missing UDC. This does not
-replace a real Channel boot + USB/RNDIS/SSH hardware test.
-
-The ConfigFS gadget directory is now `/sys/kernel/config/usb_gadget/usb-gadget`.
-**Channel-specific USB descriptors, serial prefix, VID/PID, MAC addresses,
-RNDIS function, interface `usb0`, DHCP scope `172.16.42.2–20`, and
-`sshd` bind address `172.16.42.1` are unchanged.** There is no new USB
-protocol or driver. Firmware, kernel and main-branch Actions are unaffected.
-
-After testing on Channel:
+For local builds with a checkpoint in `out/kernel/checkpoint`:
 
 ```sh
-ip -br addr show usb0
-# Alpine:
-rc-service usb-gadget status
-rc-service usb-sshd status
-# Debian/Ubuntu:
-systemctl status usb-gadget.service usb-dhcp.service ssh.service
+bash sh/run.sh alpine
+bash sh/run.sh debian
+bash sh/run.sh ubuntu
 ```
 
-From the USB host, connect via `ssh root@172.16.42.1`. A valid RNDIS-capable
-kernel/UDC is still required; file/service checks do not prove hardware boot.
+Outputs are saved under `out/rootfs/DISTRO/`: `rootfs.ext4`, the compressed
+`DISTRO-channel-rootfs.ext4.zst`, `boot.img` copied from the kernel checkpoint,
+build metadata and SHA256SUMS. All three currently use 1024 MiB ext4 images.
 
-## Alpine 512 MiB ext4 image
+## Channel integration
 
-The Alpine builder now targets a **fixed 512 MiB uncompressed ext4 image**
-(`536870912` bytes). Zstandard download size will vary. Before writing the
-image, it drops only the disposable APK cache; installed Wi-Fi firmware, kernel
-modules, RNDIS, SSH and NetworkManager are unchanged. It provisions 16,384
-ext4 inodes and an 8 MiB journal (journaling remains enabled).
+- Firmware: `conf/firmware.conf` + `sh/firmware.sh`; no GitLab download needed
+  when `firmware/channel/source/` is present. Drivers receive their required paths.
+- USB RNDIS: `conf/usb.conf` + `sh/usb-gadget` (installed inside the rootfs).
+  SSH listens on `172.16.42.1`; DHCP assigns `172.16.42.2–20`.
+- Wi-Fi: NetworkManager manages wlan0 but leaves USB `usb0` unmanaged.
+- Audio: shared UCM2 profile and PulseAudio helper. Headphones worked on
+  Alpine; speaker/mic and Debian/Ubuntu runtime are not yet validated.
 
-After populating ext4, it runs `e2fsck`, inspects actual filesystem free
-blocks via `tune2fs`, and **fails the build if less than 32 MiB remain**.
-The metadata reports `image_size_mib`, `image_free_mib`,
-`image_min_free_mib`, and `staged_rootfs_mib`; final CI orchestration checks
-that the expanded Alpine `rootfs.ext4` is exactly 512 MiB. A size reduction
-cannot itself demonstrate runtime stability: the Channel must be rebooted and
-USB SSH / Wi-Fi retested with the newly built image. If this build fails the
-free-space guard, reduce installed footprint rather than bypassing it.
-
-Debian and Ubuntu now target **1,024 MiB** of uncompressed ext4 each,
-with 32,768 inodes, a 16 MiB journal and a **64 MiB minimum free-space guard**
-after population. The CI checks their exact ext4 sizes. These are size
-targets, **not measured minimums**: if either distro cannot fit, its build
-fails rather than publishing a truncated or unsafe image. Successful Channel
-hardware validation to date covers Alpine; Debian/Ubuntu still need testing.
-
-## Wired headphone audio (ALSA UCM2 / PulseAudio)
-
-All three rootfs builders install the shared ALSA UCM2 overlay from
-`audio/rootfs/`. The card name is `motorola-channe` because ALSA truncates
-the kernel card name `motorola-channel` (ASoC driver-name limit).
-`motorola-channe.conf` is the UCM2 entry point; it selects the standard
-`HiFi` verb implemented in `pulseaudio.conf`.
-
-The tested Alpine route plays through wired stereo headphones using
-`hw:${CardId},0` (`MultiMedia1`). The verb intentionally initializes the
-headphone mixer controls at activation so PulseAudio discovers a real UCM sink
-on startup instead of `auto_null`. The `Headphones` device retains its
-enable/disable sequences. The built-in speaker and microphone are **not
-validated** and are intentionally not exposed as functional UCM devices yet.
-
-## PulseAudio auto-start for headless SSH
-
-The rootfs builders enable `pulseaudio-channel` automatically: OpenRC's
-`default` runlevel for Alpine, and `pulseaudio-channel.service` at
-`multi-user.target` for Debian and Ubuntu. The shared executable
-`/usr/local/libexec/channel-wait-alsa` waits up to 30 seconds for
-`/dev/snd/controlC0` before starting the server, so the ALSA UCM2 card
-has a chance to appear. Neither the wait helper nor the services change
-mixer routes or start a kernel build.
-
-These headless images use root SSH, so the boot service deliberately uses
-the existing root-user PulseAudio configuration (`HOME=/root`,
-`--daemonize=no --exit-idle-time=-1`), **not** system-wide mode.
-PulseAudio may print its normal warning about running as root.
-
-Verify on a newly built image **after reboot**:
-
-```sh
-# Alpine:
-rc-service pulseaudio-channel status
-# Debian/Ubuntu:
-systemctl status pulseaudio-channel.service
-# All three:
-pactl list short sinks
-```
-
-Expected wired output: `alsa_output.platform-c051000.sound-card.HiFi__Headphones__sink`.
-This boot integration is committed but **not yet hardware-validated** on the
-new Debian/Ubuntu images. The speaker and microphone are still unvalidated.
-
-## Local builds
-
-On an x86_64 Linux host, make the `main` kernel checkpoint available at `out/kernel/checkpoint/` and run one of:
-
-```bash
-bash alpine/run.sh
-bash debian/run.sh
-bash ubuntu/run.sh
-```
-
-Each distribution has its own `out/rootfs/DISTRO/` output directory. `boot.img` is copied from the same kernel checkpoint; it is not rebuilt by the rootfs process.
-
-## Previous branches
-
-The original `alpine`, `debian`, and `ubuntu` branches are retained temporarily for rollback. Use `rootfs` for subsequent rootfs changes and `main` for kernel / GitHub Actions entry points.
-
-See [FIRMWARE.md](FIRMWARE.md) for firmware provenance and checks.
+See [firmware documentation](docs/firmware.md).

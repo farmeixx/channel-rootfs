@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reuse an already successful mainline.yml checkpoint (never dispatch a build).
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [ "${GITHUB_ACTIONS:-}" = true ] || { echo 'ERROR: Local builds reuse out/kernel/checkpoint; no CI download needed.' >&2; exit 1; }
 [ -n "${GITHUB_REPOSITORY:-}" ] || { echo 'ERROR: GITHUB_REPOSITORY missing.' >&2; exit 1; }
 command -v gh >/dev/null || { echo 'ERROR: GitHub CLI missing.' >&2; exit 1; }
@@ -38,5 +38,5 @@ rm -rf "$checkpoint"
 mkdir -p "$checkpoint"
 echo "Reusing kernel checkpoint $selected_artifact (run $selected_run)"
 gh run download "$selected_run" --repo "$GITHUB_REPOSITORY" --name "$selected_artifact" --dir "$checkpoint"
-KERNEL_CHECKPOINT_DIR="$checkpoint" bash "$ROOT/scripts/kernel/validate.sh" --basic
+KERNEL_CHECKPOINT_DIR="$checkpoint" bash "$ROOT/sh/validate.sh" --basic
 printf 'Kernel run: %s\nArtifact: %s\n' "$selected_run" "$selected_artifact"

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # The distro build.sh files are unchanged: only their orchestration moved here.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DISTRO="${1:?Usage: bash scripts/rootfs/run.sh alpine|debian|ubuntu}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DISTRO="${1:?Usage: bash sh/run.sh alpine|debian|ubuntu}"
 case "$DISTRO" in alpine|debian|ubuntu);; *) echo 'ERROR: Unknown distribution.' >&2; exit 2;; esac
 CHECKPOINT="${KERNEL_CHECKPOINT_DIR:-$ROOT/out/kernel/checkpoint}"
 CHECKPOINT="$(realpath -m "$CHECKPOINT")"
 # Deliberately fail before installing packages or downloading a rootfs.
-KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/scripts/kernel/validate.sh" --basic
-# Never install dependencies or create a rootfs that lacks original WCNSS blobs.
-bash "$ROOT/scripts/firmware/install.sh" check
-source "$ROOT/scripts/host-deps.sh"
+KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/sh/validate.sh" --basic
+# Check complete device firmware before installing dependencies.
+bash "$ROOT/sh/firmware.sh" check
+source "$ROOT/sh/deps.sh"
 install_host_deps "$DISTRO"
-KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/scripts/kernel/validate.sh" --full
+KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/sh/validate.sh" --full
 KREL="$(cat "$CHECKPOINT/kernel-release.txt")"
 OUT_DIR="$ROOT/out/rootfs/$DISTRO"
 WORK_DIR="$ROOT/.work/rootfs/$DISTRO"
@@ -33,8 +33,7 @@ grep -Fxq "rootfs_label=$DISTRO" "$OUT_DIR/build-info.txt"
 grep -Fxq 'ssh_listen=172.16.42.1' "$OUT_DIR/build-info.txt"
 grep -Fxq 'wifi_runtime_setup=nmcli' "$OUT_DIR/build-info.txt"
 (cd "$OUT_DIR" && sha256sum -c "SHA256SUMS.$DISTRO")
-# Equivalent of mainline/publish-rootfs-images.sh, without Github workspace
-# assumptions or rebuilding the boot image: boot.img is from the checkpoint.
+# Reuse the boot image from the validated kernel checkpoint.
 cp -f "$CHECKPOINT/boot-channel.img" "$OUT_DIR/boot.img"
 zstd -d -f "$SOURCE" -o "$OUT_DIR/rootfs.ext4"
 [ "$(blkid -p -o value -s TYPE "$OUT_DIR/rootfs.ext4")" = ext4 ] || {
