@@ -24,7 +24,7 @@ jobs:
           restore-keys: |
             channel-arm64-ccache-${{ runner.os }}-${{ runner.arch }}-
       - name: Build and validate the reusable kernel checkpoint
-        run: bash mainline/run.sh
+        run: bash sh/run.sh
       - name: Identify kernel revision
         id: source
         shell: bash

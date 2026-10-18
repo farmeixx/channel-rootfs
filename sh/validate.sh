@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Generic kernel checkpoint validation. Per-device checks live in mainline.conf.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "${KERNEL_MAINLINE_CONF:-$ROOT/mainline.conf}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 DIR="${KERNEL_CHECKPOINT_DIR:-$ROOT/out/kernel/checkpoint}"
 MODE="${1:---full}"
 [ "$MODE" = --full ] || [ "$MODE" = --basic ] || { echo 'Usage: validate.sh --full|--basic' >&2; exit 2; }

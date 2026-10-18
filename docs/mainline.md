@@ -1,14 +1,14 @@
 # Generic mainline kernel builder
 
-Configure **mainline.conf** at the repository root before running:
+Configure **conf/mainline.conf** at the repository root before running:
 
 ```bash
-bash mainline/run.sh
+bash sh/run.sh
 ```
 
 The shared scripts do not contain Channel source URLs, kernel branches, config
 fragments, DTB paths, required Kconfig symbols or boot-image offsets. All are
-configured in `mainline.conf`.
+configured in `conf/mainline.conf`.
 
 Important options:
 - `KERNEL_URL`: git clone URL

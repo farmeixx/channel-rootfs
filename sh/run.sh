@@ -2,7 +2,7 @@
 # Generic source checkout / kernel build / boot image / checkpoint pipeline.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONF="${KERNEL_MAINLINE_CONF:-$ROOT/mainline.conf}"
+CONF="${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 test -s "$CONF" || { echo "Missing mainline.conf: $CONF" >&2; exit 1; }
 export KERNEL_MAINLINE_CONF="$CONF"
 source "$CONF"
@@ -12,7 +12,7 @@ source "$CONF"
 : "${KERNEL_MKBOOTIMG_URL:?set KERNEL_MKBOOTIMG_URL}"
 : "${KERNEL_MKBOOTIMG_REF:?set KERNEL_MKBOOTIMG_REF}"
 
-source "$ROOT/scripts/host-deps.sh"
+source "$ROOT/sh/deps.sh"
 install_host_deps kernel
 WORK="$ROOT/.work/kernel"
 KERNEL_DIR="$(realpath -m "$ROOT/$KERNEL_CLONE_DIR")"
@@ -40,7 +40,7 @@ test "$(git -C "$KERNEL_DIR" rev-parse HEAD)" = "$SOURCE_SHA" || {
 printf 'kernel_url=%s\nkernel_ref=%s\nkernel_source_sha=%s\n' \
   "$KERNEL_URL" "$KERNEL_REF" "$SOURCE_SHA" > "$STAGING/source-report.txt"
 export KERNEL_DIR OUT_DIR="$STAGING"
-bash "$ROOT/mainline/build.sh"
+bash "$ROOT/sh/build.sh"
 KREL="$(cat "$STAGING/kernel-release.txt")"
 DTB_NAME="${KERNEL_DTB##*/}"
 {
@@ -64,7 +64,7 @@ python3 "$MKBOOT_DIR/mkbootimg.py" --help >/dev/null
 python3 "$MKBOOT_DIR/unpack_bootimg.py" --help >/dev/null
 export KERNEL_RELEASE="$KREL" KERNEL_IMAGE="$STAGING/Image.gz" \
   KERNEL_DTB_FILE="$STAGING/$DTB_NAME" MKBOOTIMG_PY="$MKBOOT_DIR/mkbootimg.py"
-bash "$ROOT/mainline/build-bootimg.sh"
+bash "$ROOT/sh/bootimg.sh"
 
 grep -Fq "root=$KERNEL_ROOT_DEVICE" "$STAGING/kernel-cmdline.txt" || {
   echo "Boot cmdline root does not match KERNEL_ROOT_DEVICE" >&2; exit 1;
@@ -85,7 +85,7 @@ cp "$CONF" "$STAGING/mainline.conf"
   done
   sha256sum "${files[@]}" > SHA256SUMS
 )
-KERNEL_CHECKPOINT_DIR="$STAGING" bash "$ROOT/scripts/kernel/validate.sh" --full
+KERNEL_CHECKPOINT_DIR="$STAGING" bash "$ROOT/sh/validate.sh" --full
 
 PREVIOUS="$ROOT/out/kernel/.checkpoint-previous"
 rm -rf "$PREVIOUS"

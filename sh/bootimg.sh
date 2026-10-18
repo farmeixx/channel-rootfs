@@ -2,7 +2,7 @@
 # Generic Android boot image packer configured in mainline.conf.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${KERNEL_MAINLINE_CONF:-$ROOT/mainline.conf}"
+source "${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 : "${KERNEL_RELEASE:?set KERNEL_RELEASE}"
 : "${OUT_DIR:?set OUT_DIR}"
 : "${KERNEL_BOOT_NAME:?set KERNEL_BOOT_NAME}"

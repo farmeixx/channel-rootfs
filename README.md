@@ -1,37 +1,44 @@
-# Moto G7 Play (channel) — mainline kernel
+# Channel mainline kernel builder
 
-The `main` branch contains the kernel builder and GitHub Actions workflow entry points for Motorola Moto G7 Play (`channel`). **All three rootfs builders now live together on [`rootfs`](https://github.com/farmeixx/channel-rootfs/tree/rootfs)**, with independent Alpine/Debian/Ubuntu directories and shared firmware/tools.
+The **main** branch contains the kernel builder and GitHub Actions entry points.
+Device-specific settings live in [`conf/mainline.conf`](conf/mainline.conf).
+No firmware or rootfs overlay lives on this branch.
 
-## GitHub Actions
-
-- **Build mainline kernel** (`mainline.yml`): run on **main** to build and publish the validated kernel checkpoint (`boot.img`, DTB, modules, hashes). ARM64 GCC builds use a persistent GitHub Actions `ccache` (maximum 2 GiB).
-- **Build alpine rootfs** (`alpine.yml`): on **main**, checks out `rootfs` and invokes `bash scripts/ci/build-rootfs.sh alpine`.
-- **Build debian rootfs** (`debian.yml`): on **main**, checks out `rootfs` and invokes `bash scripts/ci/build-rootfs.sh debian`.
-- **Build ubuntu rootfs** (`ubuntu.yml`): on **main**, checks out `rootfs` and invokes `bash scripts/ci/build-rootfs.sh ubuntu`.
-
-Every rootfs builder **reuses an already successful, unexpired** `mainline.yml` checkpoint from **main**. The newest usable kernel checkpoint is selected automatically. There is no Run ID input, and a rootfs workflow **never dispatches or compiles the kernel**. If no checkpoint is available, the rootfs job fails.
-
-The YAMLs on `main` are entry points only: they choose the `rootfs` branch, call the appropriate shell script, and upload the same per-distro artifacts as before. GitHub requires workflows on the default branch for reliable manual dispatch.
-
-## Build kernel locally (Linux x86_64)
-
-```sh
-bash mainline/run.sh
-```
-
-This installs/checks host dependencies, fetches the selected kernel source, builds the Channel DTB and modules, and produces:
+## Layout
 
 ```text
-out/kernel/checkpoint/   # validated Image.gz, DTB, modules, boot-channel.img, SHA256SUMS
-out/kernel/images/boot.img
+conf/
+  mainline.conf           # source, branch, clone path, two optional configs, DTB, boot.img
+sh/
+  run.sh                  # orchestrate kernel checkout/build/checkpoint
+  build.sh                # compile kernel, DTB and modules
+  bootimg.sh              # create Android boot image
+  validate.sh             # verify kernel checkpoint
+  deps.sh                 # build host dependencies and ccache
+docs/
+  mainline.md             # configuration details
+.github/workflows/
+  mainline.yml            # manual kernel build
+  alpine.yml             # dispatch rootfs build from rootfs branch
+  debian.yml
+  ubuntu.yml
 ```
 
-For rootfs instructions, see the [rootfs branch README](https://github.com/farmeixx/channel-rootfs/blob/rootfs/README.md). Its distro build scripts and bundled firmware are separate from the kernel builder.
+## Build
 
-## Branches
+```sh
+bash sh/run.sh
+```
 
-- `main`: dedicated mainline kernel build, ccache and Actions entry YAMLs.
-- [`rootfs`](https://github.com/farmeixx/channel-rootfs/tree/rootfs): Alpine, Debian, Ubuntu, common rootfs scripts and Channel firmware.
-- [`help`](https://github.com/farmeixx/channel-rootfs/tree/help): short setup and usage commands (SSH, Wi-Fi, date, `resize2fs`).
+Kernel build writes `out/kernel/checkpoint/` (kernel, modules, DTB, boot image,
+config, hashes) and `out/kernel/images/boot.img`. The checkpoint is published
+only after validation succeeds; ccache is used on the GitHub runner.
 
-The old `alpine`, `debian`, and `ubuntu` branches are retained temporarily as rollback references, but **new rootfs work belongs on `rootfs`**.
+Rootfs workflows **do not compile or dispatch a kernel**. They check out the
+[`rootfs` branch](https://github.com/farmeixx/channel-rootfs/tree/rootfs)
+and reuse the latest successful, unexpired kernel checkpoint from `mainline.yml`.
+All workflows are manually dispatched; the one-off firmware import workflow was
+removed once firmware was vendored into `rootfs`.
+
+See [configuration and porting notes](docs/mainline.md) and
+[`rootfs` README](https://github.com/farmeixx/channel-rootfs/blob/rootfs/README.md).

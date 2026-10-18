@@ -21,7 +21,7 @@ jobs:
       - name: Reuse kernel checkpoint and build ubuntu via shell
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/build-rootfs.sh ubuntu
+        run: bash sh/build.sh ubuntu
       - uses: actions/upload-artifact@v4
         with:
           name: channel-ubuntu-rootfs

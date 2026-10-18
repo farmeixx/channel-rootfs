@@ -21,7 +21,7 @@ jobs:
       - name: Reuse kernel checkpoint and build debian via shell
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/build-rootfs.sh debian
+        run: bash sh/build.sh debian
       - uses: actions/upload-artifact@v4
         with:
           name: channel-debian-rootfs

@@ -2,7 +2,7 @@
 # Generic kernel builder: source, fragments, DTB and options are from mainline.conf.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${KERNEL_MAINLINE_CONF:-$ROOT/mainline.conf}"
+source "${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 : "${KERNEL_DIR:?set KERNEL_DIR}"
 : "${OUT_DIR:?set OUT_DIR}"
 : "${KERNEL_ARCH:?set KERNEL_ARCH}"
