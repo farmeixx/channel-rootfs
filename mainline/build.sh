@@ -24,12 +24,20 @@ test -f scripts/kconfig/merge_config.sh || {
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
   bash scripts/kconfig/merge_config.sh -m .config "$MSM8953_CONFIG"
-# Keep CPR4PD built in for MSM8953 CPU OPP power domains.
+# The MSM8953 APCS clock controller drives CPU clock/OPP consumers.
+# QCOM_CLK_APCS_MSM8916 does not replace this SoC-specific driver.
+# CPR4PD independently provides the MSM8953 CPU performance domains.
+grep -Eq '^config[[:space:]]+QCOM_CLK_APCS_MSM8953([[:space:]]|$)' drivers/clk/qcom/Kconfig || {
+  echo 'Missing MSM8953 APCS clock Kconfig driver in kernel source.' >&2
+  exit 1
+}
+scripts/config --enable QCOM_CLK_APCS_MSM8953
 scripts/config --enable QCOM_CPR4PD
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
 required_y=(
   CONFIG_QCOM_CPR4PD
+  CONFIG_QCOM_CLK_APCS_MSM8953
   CONFIG_BLK_DEV_INITRD
   CONFIG_RD_GZIP
   CONFIG_DEVTMPFS
