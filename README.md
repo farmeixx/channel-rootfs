@@ -10,7 +10,7 @@ This `rootfs` branch contains **Alpine, Debian and Ubuntu** for Channel. The thr
 - `scripts/ci/build-rootfs.sh`: selects one distribution, then reuses an existing kernel checkpoint.
 - `scripts/ci/fetch-kernel.sh`: downloads the newest successful unexpired kernel checkpoint from the **main** branch. Never dispatches or rebuilds a kernel.
 - `scripts/rootfs/run.sh`, `scripts/host-deps.sh`, `scripts/kernel/validate.sh`: shared rootfs build support.
-- `scripts/firmware/channel.sh`: a shared installer that prefers a SHA-256-verified GitLab WCNSS set and safely falls back to bundled firmware until the upstream WCNSS upload is completed.
+- `firmware/channel/firmware.conf`: Channel-specific firmware source, directory and alias mapping. `scripts/firmware/install.sh` clones the full firmware repository and installs it for all three distros.
 
 ## GitHub Actions
 

@@ -43,7 +43,7 @@ test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/pulseaudio.conf"
 sudo chmod 0755 "$ROOTFS/usr/local/libexec/channel-wait-alsa"
 test -x "$ROOTFS/usr/local/libexec/channel-wait-alsa"
 # Install original device firmware as regular files; never mount Android vendor/modem.
-bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
+bash "$REPO_ROOT/scripts/firmware/install.sh" install "$ROOTFS"
 # One shared RNDIS implementation + Channel-specific configuration for all distros.
 sudo install -D -m 0755 "$REPO_ROOT/scripts/usb/usb-gadget" "$ROOTFS/usr/local/sbin/usb-gadget"
 sudo install -m 0644 "$REPO_ROOT/scripts/usb/channel.conf" "$ROOTFS/etc/usb-gadget.conf"

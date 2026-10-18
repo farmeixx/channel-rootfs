@@ -9,7 +9,7 @@ CHECKPOINT="$(realpath -m "$CHECKPOINT")"
 # Deliberately fail before installing packages or downloading a rootfs.
 KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/scripts/kernel/validate.sh" --basic
 # Never install dependencies or create a rootfs that lacks original WCNSS blobs.
-bash "$ROOT/scripts/firmware/channel.sh" check
+bash "$ROOT/scripts/firmware/install.sh" check
 source "$ROOT/scripts/host-deps.sh"
 install_host_deps "$DISTRO"
 KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/scripts/kernel/validate.sh" --full

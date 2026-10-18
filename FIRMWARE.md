@@ -1,48 +1,38 @@
-# GitLab-first firmware selection
+# Firmware source and installation
 
-The builder now prefers the upstream [Channel firmware repository](https://gitlab.com/vanadium-oss/motorola-msm8953/mainline/channel-firmware), but the complete WCNSS files are still listed as pending there. To avoid breaking working Wi-Fi, the SH keeps a **verified bundled fallback**.
+Device-specific configuration: [firmware/channel/firmware.conf](firmware/channel/firmware.conf).
 
-- `CHANNEL_FIRMWARE_SOURCE=auto` (default): use GitLab only if its WCNSS segments and base NV pass the existing SHA-256 checks; otherwise use bundled firmware.
-- `CHANNEL_FIRMWARE_SOURCE=gitlab`: strictly require GitLab, and fail if WCNSS is missing or differs.
-- `CHANNEL_FIRMWARE_SOURCE=bundled`: use verified offline bundle without remote access.
-- Optional `CHANNEL_FIRMWARE_URL` and `CHANNEL_FIRMWARE_REF` select the repository and revision.
+The shared [scripts/firmware/install.sh](scripts/firmware/install.sh) reads
+`FIRMWARE_URL`, optional `FIRMWARE_REF`, directory mappings and aliases.
+It clones the complete `channel-firmware` repository, checks its SHA256SUMS
+when present, copies **every firmware file** in the configured directories,
+then installs two Channel NV aliases for the WCN36xx driver and DT.
+This installs WCNSS, ADSP, modem, Venus, GPU and touchscreen firmware;
+firmware binaries are copied, **not compiled**.
 
-Put WCNSS parts under `wlan/wcnss/` in the GitLab repository and use the existing `wlan/WCNSS_qcom_wlan_nv.bin` base NV. Existing hashes must match `firmware/channel/SHA256SUMS`, including reconstructed `wcnss.b06`. The regional NV, GPU and touchscreen firmware are not substituted for the working WCNSS set. The old bundled firmware can be deleted **only after** a successful CI run using `CHANNEL_FIRMWARE_SOURCE=gitlab`.
+The checked-in old WCNSS fallback/segmented b06 package was removed.
+The firmware source is now exclusively the original GitLab repository.
+The user-tested Channel RAR contains the same layout and can also be used
+offline with `FIRMWARE_SOURCE_ARCHIVE=/path/to/channel-firmware.rar` (requires
+`bsdtar`) or its extracted contents with `FIRMWARE_SOURCE_DIR=/path/to/extracted`.
+The optional archive SHA256 is defined in firmware.conf. No large binary payload
+is stored in this rootfs branch.
 
-# Motorola Moto G7 Play (`channel`) WCNSS firmware
-
-Firmware used in the Wi-Fi test on `channel` (mainline kernel 7.3.0-rc7).
-`wcnss.mdt`, the nine available `wcnss.bXX` segments and
-`WCNSS_qcom_wlan_nv.bin` are **included in this project**. No manual extraction,
-firmware download, GitHub secret, or runtime Android-partition mount is required.
-
-The Wi-Fi device registered through `wcn36xx`; the Channel connected to a WPA2
-access point and successfully pinged 1.1.1.1 (3/3 packets). This does not prove
-long-term stability, and firmware compatibility remains specific to Channel / the
-relevant hardware variant.
-
-The source firmware image files originate from the device's stock `modem_a`
-partition; the NV file came from `vendor_a/etc/wifi/WCNSS_qcom_wlan_nv.bin`.
-Both copies of NV in the original transfer archive are byte-identical. The
-manifest in `firmware/channel/SHA256SUMS` verifies the bundled file contents.
-The largest firmware segment (`wcnss.b06`) is stored as three compressed parts
-for repository transport; `scripts/firmware/channel.sh` restores the original
-3,290,256 bytes automatically **at build time** and validates its SHA-256.
-No user action is required.
-
-The rootfs builder copies files to:
-
-```text
-/lib/firmware/wcnss.mdt
-/lib/firmware/wcnss.b00, .b01, .b02, .b04, .b06, .b09, .b10, .b11, .b12
-/lib/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
-/lib/firmware/qcom/msm8953/motorola/channel/WCNSS_qcom_wlan_nv.bin
+Example:
+```sh
+bash scripts/firmware/install.sh check
+bash scripts/firmware/install.sh install /path/to/staged/rootfs
 ```
 
-The device tree / driver identifies the expected NV firmware **path**. Firmware
-bytes do not come from the DTB. Firmware images may be shared between compatible
-units; *unit-specific* calibration and identifiers may live separately in other
-partitions. Do not copy `modemst1`, `modemst2`, or device calibration partitions.
+Firmware mapping for Channel:
+- `modem/*` -> `/lib/firmware/*` (including `wcnss.*`, `adsp.*`, `venus.*`)
+- `qcom/*` -> `/lib/firmware/qcom/*`
+- `touchscreen/*` -> `/lib/firmware/touchscreen/*`
+- `wlan/*` -> `/lib/firmware/wlan/*`
+- `wlan/WCNSS_qcom_wlan_nv.bin` -> the two additional driver/DT paths
+  `wlan/prima/WCNSS_qcom_wlan_nv.bin` and
+  `qcom/msm8953/motorola/channel/WCNSS_qcom_wlan_nv.bin`
 
-The firmware may be proprietary and subject to vendor licensing; review those
-terms before redistributing publicly or reusing on other hardware.
+No firmware is read from live Android partitions. Preserve recovery images
+when testing different firmware sets. Proprietary redistribution rights still
+apply.
