@@ -39,6 +39,9 @@ sudo cp -a "$REPO_ROOT/debian/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/audio/rootfs/." "$ROOTFS/"
 test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/motorola-channe.conf"
 test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/pulseaudio.conf"
+# Wait for the mainline ALSA card before starting the headless PulseAudio service.
+sudo chmod 0755 "$ROOTFS/usr/local/libexec/channel-wait-alsa"
+test -x "$ROOTFS/usr/local/libexec/channel-wait-alsa"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
 # One shared RNDIS implementation + Channel-specific configuration for all distros.
@@ -77,7 +80,7 @@ sudo ssh-keygen -A -f "$ROOTFS"
 sudo systemctl --root="$ROOTFS" disable ssh.socket 2>/dev/null || true
 sudo systemctl --root="$ROOTFS" disable dnsmasq.service 2>/dev/null || true
 sudo systemctl --root="$ROOTFS" enable \
-  usb-gadget.service usb-dhcp.service \
+  usb-gadget.service usb-dhcp.service pulseaudio-channel.service \
   NetworkManager.service dbus.socket
 sudo systemctl --root="$ROOTFS" enable ssh.service
 
@@ -116,6 +119,7 @@ test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/NetworkManager.servi
   test -L "$ROOTFS/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service"
 test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/usb-gadget.service"
 test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/usb-dhcp.service"
+test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/pulseaudio-channel.service"
 test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/ssh.service"
 
 cleanup_mounts

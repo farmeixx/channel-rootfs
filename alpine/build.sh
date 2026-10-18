@@ -107,6 +107,9 @@ sudo cp -a "$REPO_ROOT/alpine/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/audio/rootfs/." "$ROOTFS/"
 test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/motorola-channe.conf"
 test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/pulseaudio.conf"
+# Wait for the mainline ALSA card before starting the headless PulseAudio service.
+sudo chmod 0755 "$ROOTFS/usr/local/libexec/channel-wait-alsa"
+test -x "$ROOTFS/usr/local/libexec/channel-wait-alsa"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
 # One shared RNDIS implementation + Channel-specific configuration for all distros.
@@ -116,7 +119,8 @@ test -x "$ROOTFS/usr/local/sbin/usb-gadget"
 test -s "$ROOTFS/etc/usb-gadget.conf"
 sudo chmod 0755 \
   "$ROOTFS/etc/init.d/usb-gadget" \
-  "$ROOTFS/etc/init.d/usb-sshd"
+  "$ROOTFS/etc/init.d/usb-sshd" \
+  "$ROOTFS/etc/init.d/pulseaudio-channel"
 
 sudo install -d -m 0755 "$ROOTFS/etc/ssh/sshd_config.d"
 
@@ -153,7 +157,7 @@ done
 for service in hwdrivers modules sysctl hostname bootmisc syslog localmount; do
   sudo chroot "$ROOTFS" /sbin/rc-update add "$service" boot
 done
-for service in udev-postmount dbus usb-gadget dnsmasq usb-sshd networkmanager; do
+for service in udev-postmount dbus usb-gadget dnsmasq usb-sshd networkmanager pulseaudio-channel; do
   sudo chroot "$ROOTFS" /sbin/rc-update add "$service" default
 done
 
@@ -170,6 +174,7 @@ test -L "$ROOTFS/etc/runlevels/sysinit/udev-settle"
 test -L "$ROOTFS/etc/runlevels/default/udev-postmount"
 test -L "$ROOTFS/etc/runlevels/default/usb-gadget"
 test -L "$ROOTFS/etc/runlevels/default/usb-sshd"
+test -L "$ROOTFS/etc/runlevels/default/pulseaudio-channel"
 test -L "$ROOTFS/etc/runlevels/default/dnsmasq"
 test -L "$ROOTFS/etc/runlevels/default/networkmanager"
 test ! -e "$ROOTFS/etc/runlevels/sysinit/mdev"

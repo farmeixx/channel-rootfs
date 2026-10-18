@@ -113,6 +113,36 @@ on startup instead of `auto_null`. The `Headphones` device retains its
 enable/disable sequences. The built-in speaker and microphone are **not
 validated** and are intentionally not exposed as functional UCM devices yet.
 
+## PulseAudio auto-start for headless SSH
+
+The rootfs builders enable `pulseaudio-channel` automatically: OpenRC's
+`default` runlevel for Alpine, and `pulseaudio-channel.service` at
+`multi-user.target` for Debian and Ubuntu. The shared executable
+`/usr/local/libexec/channel-wait-alsa` waits up to 30 seconds for
+`/dev/snd/controlC0` before starting the server, so the ALSA UCM2 card
+has a chance to appear. Neither the wait helper nor the services change
+mixer routes or start a kernel build.
+
+These headless images use root SSH, so the boot service deliberately uses
+the existing root-user PulseAudio configuration (`HOME=/root`,
+`--daemonize=no --exit-idle-time=-1`), **not** system-wide mode.
+PulseAudio may print its normal warning about running as root.
+
+Verify on a newly built image **after reboot**:
+
+```sh
+# Alpine:
+rc-service pulseaudio-channel status
+# Debian/Ubuntu:
+systemctl status pulseaudio-channel.service
+# All three:
+pactl list short sinks
+```
+
+Expected wired output: `alsa_output.platform-c051000.sound-card.HiFi__Headphones__sink`.
+This boot integration is committed but **not yet hardware-validated** on the
+new Debian/Ubuntu images. The speaker and microphone are still unvalidated.
+
 ## Local builds
 
 On an x86_64 Linux host, make the `main` kernel checkpoint available at `out/kernel/checkpoint/` and run one of:
