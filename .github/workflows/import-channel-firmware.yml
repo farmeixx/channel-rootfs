@@ -1,0 +1,63 @@
+# One-time import of the complete user-tested Channel firmware GitLab tree
+# into the GitHub rootfs branch; does not compile or dispatch the kernel.
+name: Import Channel firmware
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/import-channel-firmware.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out rootfs branch
+        uses: actions/checkout@v4
+        with:
+          ref: rootfs
+          persist-credentials: true
+      - name: Import complete firmware tree, verify and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          source firmware/channel/firmware.conf
+          : "${FIRMWARE_URL:?}"
+          : "${FIRMWARE_LOCAL_PATH:?}"
+          test "$FIRMWARE_LOCAL_PATH" = 'firmware/channel/source'
+          stage="$RUNNER_TEMP/channel-firmware"
+          if [ -n "${FIRMWARE_REF:-}" ]; then
+            git clone --depth=1 --branch "$FIRMWARE_REF" "$FIRMWARE_URL" "$stage"
+          else
+            git clone --depth=1 "$FIRMWARE_URL" "$stage"
+          fi
+          test -s "$stage/modem/wcnss.b06"
+          test -s "$stage/modem/adsp.mdt"
+          test -s "$stage/modem/venus.mdt"
+          test -s "$stage/wlan/WCNSS_qcom_wlan_nv.bin"
+          # Confirm the fetched WCNSS/NV really matches the user-tested RAR.
+          printf '%s  %s\n' \
+            '96aea3b35b193b7411eb174c3d7ab62a632bd08a8385a1b81c87e8c5fd6bfac2' \
+            "$stage/modem/wcnss.b06" | sha256sum -c -
+          printf '%s  %s\n' \
+            '2a6deac60bdf940ba918aac462e5e2e28185573de09ede10bedc40a761f4ecf5' \
+            "$stage/wlan/WCNSS_qcom_wlan_nv.bin" | sha256sum -c -
+          if [ -s "$stage/SHA256SUMS" ]; then
+            (cd "$stage" && sha256sum -c SHA256SUMS)
+          fi
+          echo "Source commit: $(git -C "$stage" rev-parse HEAD)"
+          rm -rf "$FIRMWARE_LOCAL_PATH"
+          mkdir -p "$FIRMWARE_LOCAL_PATH"
+          cp -a "$stage/." "$FIRMWARE_LOCAL_PATH/"
+          rm -rf "$FIRMWARE_LOCAL_PATH/.git"
+          git add -f "$FIRMWARE_LOCAL_PATH"
+          if git diff --cached --quiet; then
+            echo 'Channel firmware already up to date.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'firmware: vendor complete Channel archive contents'
+          git push origin HEAD:rootfs
