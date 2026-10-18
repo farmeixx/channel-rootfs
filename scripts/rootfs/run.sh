@@ -41,7 +41,7 @@ zstd -d -f "$SOURCE" -o "$OUT_DIR/rootfs.ext4"
   echo 'ERROR: Expanded rootfs is not ext4.' >&2; exit 1;
 }
 case "$DISTRO" in
-  alpine) REQUIRED_IMAGE_MB=512 ;;
+  alpine) REQUIRED_IMAGE_MB=1024 ;;
   debian|ubuntu) REQUIRED_IMAGE_MB=1024 ;;
 esac
 grep -Fxq "image_size_mib=$REQUIRED_IMAGE_MB" "$OUT_DIR/build-info.txt"
