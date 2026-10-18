@@ -98,6 +98,21 @@ targets, **not measured minimums**: if either distro cannot fit, its build
 fails rather than publishing a truncated or unsafe image. Successful Channel
 hardware validation to date covers Alpine; Debian/Ubuntu still need testing.
 
+## Wired headphone audio (ALSA UCM2 / PulseAudio)
+
+All three rootfs builders install the shared ALSA UCM2 overlay from
+`audio/rootfs/`. The card name is `motorola-channe` because ALSA truncates
+the kernel card name `motorola-channel` (ASoC driver-name limit).
+`motorola-channe.conf` is the UCM2 entry point; it selects the standard
+`HiFi` verb implemented in `pulseaudio.conf`.
+
+The tested Alpine route plays through wired stereo headphones using
+`hw:${CardId},0` (`MultiMedia1`). The verb intentionally initializes the
+headphone mixer controls at activation so PulseAudio discovers a real UCM sink
+on startup instead of `auto_null`. The `Headphones` device retains its
+enable/disable sequences. The built-in speaker and microphone are **not
+validated** and are intentionally not exposed as functional UCM devices yet.
+
 ## Local builds
 
 On an x86_64 Linux host, make the `main` kernel checkpoint available at `out/kernel/checkpoint/` and run one of:

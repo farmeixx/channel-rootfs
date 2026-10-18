@@ -38,7 +38,7 @@ sudo cp -a "$REPO_ROOT/debian/rootfs/." "$ROOTFS/"
 # Install the same Channel-specific UCM2 headphone profile on every distribution.
 sudo cp -a "$REPO_ROOT/audio/rootfs/." "$ROOTFS/"
 test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/motorola-channe.conf"
-test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/HiFi.conf"
+test -s "$ROOTFS/usr/share/alsa/ucm2/conf.d/motorola-channe/pulseaudio.conf"
 # Install original device firmware as regular files; never mount Android vendor/modem.
 bash "$REPO_ROOT/scripts/firmware/channel.sh" install "$ROOTFS"
 # One shared RNDIS implementation + Channel-specific configuration for all distros.
