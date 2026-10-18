@@ -73,6 +73,15 @@ DTB_BASENAME="${KERNEL_DTB##*/}"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz-$KREL"
 cp "$KERNEL_DTB" "$OUT_DIR/$DTB_BASENAME"
+if [ -n "${KERNEL_DTB_POSTPROCESS:-}" ]; then
+  case "$KERNEL_DTB_POSTPROCESS" in
+    repo:*) postprocess="$ROOT/${KERNEL_DTB_POSTPROCESS#repo:}" ;;
+    /*) postprocess="$KERNEL_DTB_POSTPROCESS" ;;
+    *) postprocess="$KERNEL_DIR/$KERNEL_DTB_POSTPROCESS" ;;
+  esac
+  test -s "$postprocess" || { echo "DTB postprocess script missing: $postprocess" >&2; exit 1; }
+  bash "$postprocess" "$OUT_DIR/$DTB_BASENAME"
+fi
 cp .config "$OUT_DIR/kernel.config"
 cp System.map "$OUT_DIR/System.map"
 printf '%s\n' "$KREL" > "$OUT_DIR/kernel-release.txt"
