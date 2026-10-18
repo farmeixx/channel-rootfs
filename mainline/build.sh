@@ -1,155 +1,101 @@
 #!/usr/bin/env bash
+# Generic kernel builder: source, fragments, DTB and options are from mainline.conf.
 set -euo pipefail
-
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${KERNEL_MAINLINE_CONF:-$ROOT/mainline.conf}"
 : "${KERNEL_DIR:?set KERNEL_DIR}"
 : "${OUT_DIR:?set OUT_DIR}"
+: "${KERNEL_ARCH:?set KERNEL_ARCH}"
+: "${KERNEL_CROSS_COMPILE:?set KERNEL_CROSS_COMPILE}"
+: "${KERNEL_BASE_CONFIG:?set KERNEL_BASE_CONFIG}"
+: "${KERNEL_DTB:?set KERNEL_DTB}"
+: "${KERNEL_IMAGE_TARGET:?set KERNEL_IMAGE_TARGET}"
+: "${KERNEL_IMAGE_PATH:?set KERNEL_IMAGE_PATH}"
 
 JOBS="${JOBS:-$(nproc)}"
-
-cd "$KERNEL_DIR"
 mkdir -p "$OUT_DIR"
+cd "$KERNEL_DIR"
+MAKE=(make ARCH="$KERNEL_ARCH" CROSS_COMPILE="$KERNEL_CROSS_COMPILE")
 
-echo "::group::Configure kernel"
-# The GitLab kernel ships MSM8953 platform options as a Kconfig fragment,
-# not as a standalone make defconfig target. Apply it to the ARM64 base config.
-MSM8953_CONFIG="arch/arm64/configs/msm8953.config"
-test -s "$MSM8953_CONFIG" || {
-  echo "Missing upstream MSM8953 config fragment: $MSM8953_CONFIG" >&2
-  exit 1
-}
-test -f scripts/kconfig/merge_config.sh || {
-  echo 'Missing Kconfig merge helper.' >&2
-  exit 1
-}
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
-ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
-  bash scripts/kconfig/merge_config.sh -m .config "$MSM8953_CONFIG"
-# The MSM8953 APCS clock controller drives CPU clock/OPP consumers.
-# QCOM_CLK_APCS_MSM8916 does not replace this SoC-specific driver.
-# CPR4PD independently provides the MSM8953 CPU performance domains.
-grep -Eq '^config[[:space:]]+QCOM_CLK_APCS_MSM8953([[:space:]]|$)' drivers/clk/qcom/Kconfig || {
-  echo 'Missing MSM8953 APCS clock Kconfig driver in kernel source.' >&2
-  exit 1
-}
-scripts/config --enable QCOM_CLK_APCS_MSM8953
-scripts/config --enable QCOM_CPR4PD
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
-
-required_y=(
-  CONFIG_QCOM_CPR4PD
-  CONFIG_QCOM_CLK_APCS_MSM8953
-  CONFIG_BLK_DEV_INITRD
-  CONFIG_RD_GZIP
-  CONFIG_DEVTMPFS
-  CONFIG_DEVTMPFS_MOUNT
-  CONFIG_EXT4_FS
-  CONFIG_MMC
-  CONFIG_MMC_BLOCK
-  CONFIG_MMC_SDHCI
-  CONFIG_MMC_SDHCI_PLTFM
-  CONFIG_MMC_SDHCI_MSM
-  CONFIG_CONFIGFS_FS
-  CONFIG_USB
-  CONFIG_USB_DWC3
-  CONFIG_USB_DWC3_QCOM
-  CONFIG_USB_GADGET
-  CONFIG_USB_CONFIGFS_RNDIS
-  CONFIG_NET
-  CONFIG_INET
-  CONFIG_WLAN
-  CONFIG_WLAN_VENDOR_ATH
-  CONFIG_RPMSG_QCOM_SMD
-  CONFIG_QCOM_SMEM
-  CONFIG_QCOM_SMP2P
-  CONFIG_QCOM_SMSM
-)
-
-for sym in "${required_y[@]}"; do
-  if ! grep -qx "${sym}=y" .config; then
-    echo "Required kernel option is not built-in: $sym" >&2
-    grep -E "^${sym}=|^# ${sym} is not set" .config || true
-    exit 1
+echo "::group::Kernel configuration"
+"${MAKE[@]}" "$KERNEL_BASE_CONFIG"
+fragments=()
+for fragment in "${KERNEL_CONFIG_1:-}" "${KERNEL_CONFIG_2:-}"; do
+  [ -n "$fragment" ] || continue
+  if [[ "$fragment" == repo:* ]]; then
+    resolved="$ROOT/${fragment#repo:}"
+  elif [[ "$fragment" = /* ]]; then
+    resolved="$fragment"
+  else
+    resolved="$KERNEL_DIR/$fragment"
   fi
+  test -s "$resolved" || { echo "Missing config fragment: $resolved" >&2; exit 1; }
+  fragments+=("$resolved")
 done
-
-required_m=(
-  CONFIG_USB_CONFIGFS
-  CONFIG_CFG80211
-  CONFIG_MAC80211
-  CONFIG_WCN36XX
-  CONFIG_QCOM_WCNSS_PIL
-  CONFIG_QCOM_WCNSS_CTRL
-)
-
-for sym in "${required_m[@]}"; do
-  if ! grep -qx "${sym}=m" .config; then
-    echo "Required kernel option is not a module: $sym" >&2
-    grep -E "^${sym}=|^# ${sym} is not set" .config || true
-    exit 1
-  fi
-done
-
-if ! grep -qx 'CONFIG_USB_DWC3_DUAL_ROLE=y' .config && \
-   ! grep -qx 'CONFIG_USB_DWC3_GADGET=y' .config; then
-  echo "DWC3 is not configured for gadget/dual-role operation" >&2
-  exit 1
+if [ "${#fragments[@]}" -gt 0 ]; then
+  test -f scripts/kconfig/merge_config.sh || { echo "Missing merge_config.sh" >&2; exit 1; }
+  ARCH="$KERNEL_ARCH" CROSS_COMPILE="$KERNEL_CROSS_COMPILE" \
+    bash scripts/kconfig/merge_config.sh -m .config "${fragments[@]}"
 fi
+for sym in "${KERNEL_ENABLE_Y[@]}"; do scripts/config --enable "${sym#CONFIG_}"; done
+for sym in "${KERNEL_ENABLE_M[@]}"; do scripts/config --module "${sym#CONFIG_}"; done
+"${MAKE[@]}" olddefconfig
+
+for sym in "${KERNEL_REQUIRE_Y[@]}" "${KERNEL_ENABLE_Y[@]}"; do
+  test -n "$sym" || continue
+  grep -qx "CONFIG_${sym#CONFIG_}=y" .config || {
+    echo "Kernel config needs CONFIG_${sym#CONFIG_}=y" >&2; exit 1;
+  }
+done
+for sym in "${KERNEL_REQUIRE_M[@]}" "${KERNEL_ENABLE_M[@]}"; do
+  test -n "$sym" || continue
+  grep -qx "CONFIG_${sym#CONFIG_}=m" .config || {
+    echo "Kernel config needs CONFIG_${sym#CONFIG_}=m" >&2; exit 1;
+  }
+done
 echo "::endgroup::"
 
-RAW_KREL="$(make -s ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- kernelrelease)"
-case "$RAW_KREL" in
-  *-dirty)
-    echo "Refusing dirty kernel release: $RAW_KREL" >&2
-    exit 1
-    ;;
-esac
-KREL="$RAW_KREL"
-test -n "$KREL"
-
-echo "::group::Build kernel, DTBs and modules"
-make -j"$JOBS" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNELRELEASE="$KREL" Image.gz dtbs modules
+KREL="$("${MAKE[@]}" -s kernelrelease)"
+case "$KREL" in ""|*-dirty) echo "Invalid kernel release: $KREL" >&2; exit 1;; esac
+echo "::group::Compile kernel"
+"${MAKE[@]}" -j"$JOBS" "$KERNEL_IMAGE_TARGET" dtbs modules
 echo "::endgroup::"
 
-DTB="arch/arm64/boot/dts/qcom/sdm632-motorola-channel.dtb"
-test -s "$DTB" || {
-  echo "Expected Channel DTB was not produced: $DTB" >&2
-  exit 1
-}
+test -s "$KERNEL_DTB" || { echo "Missing requested DTB: $KERNEL_DTB" >&2; exit 1; }
+test -s "$KERNEL_IMAGE_PATH"
 test -s System.map
-test -s arch/arm64/boot/Image.gz
-
-IRIS_COMPATIBLE="$(fdtget -t s "$DTB" /soc@0/remoteproc@a204000/iris compatible)"
-test "$IRIS_COMPATIBLE" = "qcom,wcn3620"
-
-cp arch/arm64/boot/Image.gz "$OUT_DIR/Image.gz"
-cp arch/arm64/boot/Image.gz "$OUT_DIR/Image.gz-$KREL"
-cp "$DTB" "$OUT_DIR/sdm632-motorola-channel.dtb"
+if [ -n "${KERNEL_DTB_CHECK_NODE:-}" ]; then
+  test "$(fdtget -t s "$KERNEL_DTB" "$KERNEL_DTB_CHECK_NODE" "$KERNEL_DTB_CHECK_PROPERTY")" = "$KERNEL_DTB_CHECK_VALUE" || {
+    echo "DTB validation failed: $KERNEL_DTB_CHECK_NODE" >&2; exit 1;
+  }
+fi
+DTB_BASENAME="${KERNEL_DTB##*/}"
+cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz"
+cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz-$KREL"
+cp "$KERNEL_DTB" "$OUT_DIR/$DTB_BASENAME"
 cp .config "$OUT_DIR/kernel.config"
-cp "$MSM8953_CONFIG" "$OUT_DIR/msm8953.config"
 cp System.map "$OUT_DIR/System.map"
 printf '%s\n' "$KREL" > "$OUT_DIR/kernel-release.txt"
 git rev-parse HEAD > "$OUT_DIR/kernel-git-revision.txt"
-cat "$OUT_DIR/Image.gz" "$OUT_DIR/sdm632-motorola-channel.dtb" > "$OUT_DIR/Image.gz-dtb"
+cat "$OUT_DIR/Image.gz" "$OUT_DIR/$DTB_BASENAME" > "$OUT_DIR/Image.gz-dtb"
 
-echo "::group::Package kernel modules"
+for idx in "${!fragments[@]}"; do
+  cp "${fragments[$idx]}" "$OUT_DIR/config-fragment-$((idx + 1)).config"
+done
+
+echo "::group::Package modules"
 rm -rf "$OUT_DIR/modules-root"
 mkdir -p "$OUT_DIR/modules-root"
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNELRELEASE="$KREL" \
-  INSTALL_MOD_PATH="$OUT_DIR/modules-root" modules_install
+"${MAKE[@]}" KERNELRELEASE="$KREL" INSTALL_MOD_PATH="$OUT_DIR/modules-root" modules_install
 tar -I 'zstd -T0 -10' -cf "$OUT_DIR/kernel-modules-$KREL.tar.zst" \
   -C "$OUT_DIR/modules-root" lib/modules
 rm -rf "$OUT_DIR/modules-root"
 echo "::endgroup::"
-
 {
-  echo "kernel_release=$KREL"
-  echo "kernel_git_revision=$(git rev-parse HEAD)"
-  echo "iris_compatible=$IRIS_COMPATIBLE"
-  echo "architecture=arm64"
+  printf 'kernel_release=%s\nkernel_git_revision=%s\narchitecture=%s\ndtb=%s\n' \
+    "$KREL" "$(git rev-parse HEAD)" "$KERNEL_ARCH" "$DTB_BASENAME"
 } > "$OUT_DIR/kernel-info.txt"
-
-# GitHub Actions uses GITHUB_ENV; local ZIP builds do not.
 if [ -n "${GITHUB_ENV:-}" ]; then
-  echo "KERNEL_RELEASE=$KREL" >> "$GITHUB_ENV"
+  printf 'KERNEL_RELEASE=%s\n' "$KREL" >> "$GITHUB_ENV"
 fi
 echo "Kernel release: $KREL"

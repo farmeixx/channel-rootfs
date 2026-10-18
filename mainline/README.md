@@ -1,0 +1,35 @@
+# Generic mainline kernel builder
+
+Configure **mainline.conf** at the repository root before running:
+
+```bash
+bash mainline/run.sh
+```
+
+The shared scripts do not contain Channel source URLs, kernel branches, config
+fragments, DTB paths, required Kconfig symbols or boot-image offsets. All are
+configured in `mainline.conf`.
+
+Important options:
+- `KERNEL_URL`: git clone URL
+- `KERNEL_REF`: branch to clone
+- `KERNEL_CLONE_DIR`: local clone path beneath `.work/`
+- `KERNEL_BASE_CONFIG`: make target, e.g. `defconfig`
+- `KERNEL_CONFIG_1`, `KERNEL_CONFIG_2`: optional fragment paths relative to
+  the source. **Empty means do not merge anything for that slot.**
+  `repo:PATH` can refer to a local file in this builder repo.
+- `KERNEL_ENABLE_Y`, `KERNEL_ENABLE_M`: explicitly requested Kconfig edits.
+  Empty arrays do nothing.
+- `KERNEL_DTB`, `KERNEL_IMAGE_TARGET`, `KERNEL_IMAGE_PATH`: source outputs.
+- `KERNEL_REQUIRE_Y/M`: per-device sanity validation.
+- `KERNEL_DTB_CHECK_*`: optional device DTB sanity check.
+- `KERNEL_BOOT_*`, `KERNEL_CMDLINE`: Android boot-image properties.
+  
+The default profile reproduces Channel's known settings, including the
+`msm8953.config` fragment, CPR4PD and MSM8953 APCS clock support.
+
+No workflow is launched from any rootfs builder. The mainline kernel workflow
+remains manual, with ccache enabled. The previous checkpoint is kept until a
+new one successfully builds and verifies. For other devices, build scripts
+are reusable, but the rootfs/boot image pipeline must also be adapted to the
+target device's boot partition and rootfs layout.
