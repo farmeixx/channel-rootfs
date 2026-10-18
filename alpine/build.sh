@@ -214,7 +214,7 @@ echo "::endgroup::"
 cleanup_apk_dev
 trap - EXIT
 
-echo "::group::Create 512 MiB Alpine ext4 rootfs image"
+echo "::group::Create 1024 MiB Alpine ext4 rootfs image"
 # Remove apk's download/index cache, not installed packages, Wi-Fi firmware, or kernel modules.
 # The existing gadget, NetworkManager and SSH configuration are kept intact.
 if [ -d "$ROOTFS/var/cache/apk" ]; then
@@ -222,7 +222,7 @@ if [ -d "$ROOTFS/var/cache/apk" ]; then
 fi
 
 USED_MB="$(sudo du -sm "$ROOTFS" | awk '{print $1}')"
-IMAGE_MB=512
+IMAGE_MB=1024
 MIN_FREE_MB=32
 echo "Alpine staged rootfs: ${USED_MB} MiB; image target: ${IMAGE_MB} MiB; required free space: ${MIN_FREE_MB} MiB"
 
@@ -249,7 +249,7 @@ BLOCK_SIZE="$(printf '%s\n' "$FS_STATS" | awk -F: '$1 == "Block size" {gsub(/[[:
 FREE_MB=$((FREE_BLOCKS * BLOCK_SIZE / 1024 / 1024))
 echo "Alpine ext4: ${IMAGE_MB} MiB total, ${FREE_MB} MiB free"
 if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
-  echo "ERROR: Alpine's 512 MiB image leaves only ${FREE_MB} MiB free (minimum ${MIN_FREE_MB} MiB)." >&2
+  echo "ERROR: Alpine's 1024 MiB image leaves only ${FREE_MB} MiB free (minimum ${MIN_FREE_MB} MiB)." >&2
   echo "Reduce staged rootfs contents before building; refusing to publish a nearly-full image." >&2
   exit 1
 fi
