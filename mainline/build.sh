@@ -11,9 +11,13 @@ mkdir -p "$OUT_DIR"
 
 echo "::group::Configure kernel"
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+# The MSM8953 CPR4PD driver is needed by the CPU OPP power domains.
+# defconfig alone does not enable it; keep the change limited to this builder.
+scripts/config --enable QCOM_CPR4PD
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
 required_y=(
+  CONFIG_QCOM_CPR4PD
   CONFIG_BLK_DEV_INITRD
   CONFIG_RD_GZIP
   CONFIG_DEVTMPFS
