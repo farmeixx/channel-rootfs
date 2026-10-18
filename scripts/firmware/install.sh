@@ -28,6 +28,9 @@ mkdir -p "$WORK"
 if [ -n "${FIRMWARE_SOURCE_DIR:-}" ]; then
   SOURCE="$(realpath "$FIRMWARE_SOURCE_DIR")"
   test -d "$SOURCE" || { echo "Firmware directory missing: $SOURCE" >&2; exit 1; }
+elif [ -n "${FIRMWARE_LOCAL_PATH:-}" ] && [ -d "$ROOT/$FIRMWARE_LOCAL_PATH" ]; then
+  SOURCE="$(realpath "$ROOT/$FIRMWARE_LOCAL_PATH")"
+  echo "Using firmware vendored in GitHub: $SOURCE"
 elif [ -n "${FIRMWARE_SOURCE_ARCHIVE:-}" ]; then
   command -v bsdtar >/dev/null || { echo "RAR input requires bsdtar (libarchive-tools)" >&2; exit 1; }
   ARCHIVE="$(realpath "$FIRMWARE_SOURCE_ARCHIVE")"
