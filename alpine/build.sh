@@ -94,7 +94,9 @@ sudo "$APK_STATIC" \
     dbus dbus-openrc \
     networkmanager networkmanager-openrc networkmanager-cli networkmanager-wifi \
     wpa_supplicant wireless-regdb \
-    openssl
+    openssl \
+    alsa-lib alsa-utils alsa-ucm-conf \
+    pulseaudio pulseaudio-alsa pulseaudio-utils alsa-plugins-pulse
 
 sudo chroot "$ROOTFS" /usr/sbin/update-ca-certificates
 echo "::endgroup::"
