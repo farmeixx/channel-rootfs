@@ -11,7 +11,9 @@ This installs WCNSS, ADSP, modem, Venus, GPU and touchscreen firmware;
 firmware binaries are copied, **not compiled**.
 
 The checked-in old WCNSS fallback/segmented b06 package was removed.
-The firmware source is now exclusively the original GitLab repository.
+The default source is the full Channel firmware repository vendored at
+`firmware/channel/source/` when available. If not yet imported, the installer
+clones the original GitLab repository. No firmware sets are mixed.
 The user-tested Channel RAR contains the same layout and can also be used
 offline with `FIRMWARE_SOURCE_ARCHIVE=/path/to/channel-firmware.rar` (requires
 `bsdtar`) or its extracted contents with `FIRMWARE_SOURCE_DIR=/path/to/extracted`.
