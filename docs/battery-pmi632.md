@@ -1,6 +1,6 @@
-# PMI632 battery - first experimental mainline checkpoint
+# PMI632 battery - experiment paused during boot regression
 
-This change on the **main** branch is **NOT** a full PMI632 QG fuel-gauge or SMB5 charger port.
+**PAUSED ON MAIN DURING BOOT TRIAGE:** the battery fragment and DTB postprocessing are disabled. The experiment is **NOT** a full PMI632 QG fuel-gauge or SMB5 charger port.
 It is a safe first milestone: expose a real ADC measurement of VBAT
 through Linux's existing `generic-adc-battery` power_supply driver.
 
@@ -30,6 +30,10 @@ single IIO channel cell. This test checks that address/format in the built DTB.
   existing CPUFreq, WCNSS firmware, USB settings and the `rootfs` branch
   are otherwise unchanged.
 
+## Current configuration
+
+The main kernel now uses **defconfig + QCOM_CPR4PD + QCOM_CLK_APCS_MSM8953** only. The msm8953 fragment was disabled because it changed the compiled boot image size substantially. The battery monitor remains in source but is not enabled until matched kernel/rootfs boot is validated.
+
 ## How to build
 
 Open GitHub Actions -> **Build mainline kernel** -> **Run workflow**,
@@ -58,7 +62,7 @@ cat /sys/bus/iio/devices/iio:device0/in_voltage_vbat_sns_input
 dmesg | grep -Ei 'adc-battery|battery-monitor|generic-adc-battery|defer|failed' | tail -n 50
 ```
 
-Expected if the driver successfully binds: `battery-monitor` as a
+Expected **only when the experiment is explicitly re-enabled** and the driver successfully binds: `battery-monitor` as a
 `Battery` power supply, plus a measured `voltage_now` similar to the
 IIO `vbat_sns` reading.
 

@@ -40,6 +40,12 @@ fi
 for sym in "${KERNEL_ENABLE_Y[@]}"; do scripts/config --enable "${sym#CONFIG_}"; done
 for sym in "${KERNEL_ENABLE_M[@]}"; do scripts/config --module "${sym#CONFIG_}"; done
 "${MAKE[@]}" olddefconfig
+# Preserve explicit DWC3 gadget/dual-role check from the older builder.
+if ! grep -qx 'CONFIG_USB_DWC3_DUAL_ROLE=y' .config &&
+   ! grep -qx 'CONFIG_USB_DWC3_GADGET=y' .config; then
+  echo "DWC3 has neither gadget nor dual-role mode enabled" >&2
+  exit 1
+fi
 
 for sym in "${KERNEL_REQUIRE_Y[@]}" "${KERNEL_ENABLE_Y[@]}"; do
   test -n "$sym" || continue
