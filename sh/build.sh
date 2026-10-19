@@ -61,13 +61,13 @@ for sym in "${KERNEL_REQUIRE_M[@]}" "${KERNEL_ENABLE_M[@]}"; do
 done
 echo "::endgroup::"
 
-# Keep the historical Channel build behavior: override the release used for
-# BOTH kernel/modules compilation and installation. Merely naming the target
-# /lib/modules directory does not change the vermagic embedded in .ko files.
+# Pin one release for compilation and installation. The generated header,
+# compressed Image.gz and every installed module are validated against it.
 KREL="$("${MAKE[@]}" -s kernelrelease)"
-case "$KREL" in
-  ""|*-dirty|*/*) echo "Invalid kernel release: $KREL" >&2; exit 1 ;;
-esac
+[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ ]] || {
+  echo "Invalid kernel release: $KREL" >&2
+  exit 1
+}
 echo "::group::Compile kernel"
 "${MAKE[@]}" -j"$JOBS" KERNELRELEASE="$KREL" "$KERNEL_IMAGE_TARGET" dtbs modules
 echo "::endgroup::"
@@ -86,6 +86,7 @@ echo "Verified compiled kernel UTS_RELEASE: $KREL"
 
 test -s "$KERNEL_DTB" || { echo "Missing requested DTB: $KERNEL_DTB" >&2; exit 1; }
 test -s "$KERNEL_IMAGE_PATH"
+bash "$ROOT/sh/check-kernel-release.sh" "$KERNEL_IMAGE_PATH" "$KREL"
 test -s System.map
 if [ -n "${KERNEL_DTB_CHECK_NODE:-}" ]; then
   test "$(fdtget -t s "$KERNEL_DTB" "$KERNEL_DTB_CHECK_NODE" "$KERNEL_DTB_CHECK_PROPERTY")" = "$KERNEL_DTB_CHECK_VALUE" || {

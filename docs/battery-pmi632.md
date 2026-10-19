@@ -16,23 +16,37 @@ through Linux's existing `generic-adc-battery` power_supply driver.
 The standard kernel `pmi632.dtsi` uses `ADC5_VBAT_SNS = 0x84` and a
 single IIO channel cell. This test checks that address/format in the built DTB.
 
-## What this branch changes
+## Experimental files retained (currently disabled)
 
-- `conf/battery-adc.config` requests `CONFIG_GENERIC_ADC_BATTERY=y`.
-- `conf/mainline.conf` requests that fragment and `sh/battery-adc.sh` as an
-  optional post-processing hook, plus validates the Kconfig result.
-- The postprocessor adds `adc-battery` and `simple-battery` references
-  **only to the copied output DTB**, not the source DTS or live hardware.
-  The boot image then uses the resulting DTB.
+The repository retains a read-only VBAT experiment:
+
+- `conf/battery-adc.config` requests `CONFIG_GENERIC_ADC_BATTERY=y` and its
+  prerequisites.
+- `sh/battery-adc.sh` adds `adc-battery` and `simple-battery` references
+  **only to the copied output DTB**, never the source DTS or live hardware.
 - It does not bind or access the QG (0x4800), SDAM (0xb100), SMB5 charger,
   IRQs, thermistors, or control registers.
-- Only the `main` kernel build gains this optional experimental monitor;
-  existing CPUFreq, WCNSS firmware, USB settings and the `rootfs` branch
-  are otherwise unchanged.
+
+The experiment is disabled in the active `conf/mainline.conf`: `KERNEL_CONFIG_2`
+and `KERNEL_DTB_POSTPROCESS` are empty, and `GENERIC_ADC_BATTERY` is not
+required. Normal builds therefore do not merge the battery fragment or modify
+the DTB.
 
 ## Current configuration
 
-The main kernel uses the upstream **msm8953.config** fragment again, plus explicitly requested CPR4PD/APCS drivers. The upstream fragment's `CONFIG_LOCALVERSION=-Sanders-Revived` is normal; the real regression was that a refactor stopped passing `KERNELRELEASE` to the compilation step while still passing it to `modules_install`. The kernel builder now passes the same release to both and checks the built `UTS_RELEASE` and module ELF `vermagic`. The battery monitor remains disabled until a matched kernel/rootfs boot is validated.
+The active main kernel uses the upstream **msm8953.config** fragment plus the
+explicit CPR4PD/APCS options. We confirmed a real artifact mismatch: the
+checkpoint metadata and module directory said `7.3.0-rc7-g1014de5eac08`, while
+the compiled Image and module `vermagic` said `7.3.0-rc7-Sanders-Revived+`.
+We have **not** established why Kbuild emitted different release strings on
+that run, so this is not attributed to the ADC option or file reorganization.
+
+The builder now pins one release for kernel and module compilation, checks the
+actual version embedded in `Image.gz`, and verifies every module's `vermagic`.
+Checkpoint validation repeats the image/module checks, and rootfs builds reject
+mismatched checkpoints before installing modules. The battery experiment stays
+disabled until a matched baseline kernel/rootfs pair has been validated by a
+fresh build and boot test.
 
 ## How to build
 

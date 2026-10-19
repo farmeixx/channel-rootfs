@@ -11,7 +11,7 @@ for name in Image.gz "$DTB_NAME" kernel.config System.map kernel-release.txt "$K
   test -s "$DIR/$name" || { echo "Missing checkpoint file: $name" >&2; exit 1; }
 done
 KREL="$(cat "$DIR/kernel-release.txt")"
-case "$KREL" in ""|*-dirty|*/*) echo "Invalid kernel release: $KREL" >&2; exit 1;; esac
+[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ ]] || { echo "Invalid kernel release: $KREL" >&2; exit 1; }
 MOD="$DIR/kernel-modules-$KREL.tar.zst"
 test -s "$MOD"
 if [ "$MODE" = --basic ]; then
@@ -37,8 +37,6 @@ for sym in "${KERNEL_REQUIRE_M[@]}"; do
     echo "Missing required kernel module config: $sym" >&2; exit 1;
   }
 done
-tar -I zstd -tf "$MOD" | grep -F "lib/modules/$KREL/" >/dev/null || {
-  echo 'Modules archive does not match release' >&2; exit 1;
-}
+bash "$ROOT/sh/check-kernel-release.sh" "$DIR/Image.gz" "$KREL"
 bash "$ROOT/sh/check-modules.sh" "$MOD" "$KREL"
 echo "Validated kernel checkpoint: $KREL"

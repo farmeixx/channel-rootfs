@@ -73,6 +73,10 @@ UNPACKED="$WORK/unpacked-boot"
 rm -rf "$UNPACKED"
 python3 "$MKBOOT_DIR/unpack_bootimg.py" --boot_img "$STAGING/$KERNEL_BOOT_NAME" --out "$UNPACKED"
 test -s "$UNPACKED/kernel"
+cmp -s "$UNPACKED/kernel" "$STAGING/Image.gz-dtb" || {
+  echo 'Boot image kernel payload differs from the validated Image.gz + DTB checkpoint' >&2
+  exit 1
+}
 test ! -s "$UNPACKED/ramdisk"
 printf 'root_device=%s\n' "$KERNEL_ROOT_DEVICE" >> "$STAGING/kernel-info.txt"
 cp "$CONF" "$STAGING/mainline.conf"

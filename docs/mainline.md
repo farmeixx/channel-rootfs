@@ -33,3 +33,15 @@ remains manual, with ccache enabled. The previous checkpoint is kept until a
 new one successfully builds and verifies. For other devices, build scripts
 are reusable, but the rootfs/boot image pipeline must also be adapted to the
 target device's boot partition and rootfs layout.
+
+
+## Kernel/module release consistency
+
+A checkpoint is accepted only when `kernel-release.txt`, the version embedded
+in `Image.gz`, the `lib/modules/<release>/` archive path, and every module's
+ELF `vermagic` agree. The build pins one `KERNELRELEASE` for kernel compilation
+and `modules_install`; validation fails closed if the compiled image or any
+module disagrees. The boot image's unpacked kernel payload is also compared with
+the exact `Image.gz` + DTB payload used to create it. Rootfs workflows repeat
+the image/module checks before using a checkpoint and never dispatch a kernel
+build themselves.
