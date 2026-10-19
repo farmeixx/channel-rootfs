@@ -3,7 +3,7 @@
 set -euo pipefail
 IMAGE="${1:?Usage: check-kernel-release.sh IMAGE.gz EXPECTED_RELEASE}"
 EXPECTED="${2:?Usage: check-kernel-release.sh IMAGE.gz EXPECTED_RELEASE}"
-[[ "$EXPECTED" =~ ^[-A-Za-z0-9._+]+$ ]] || {
+[[ "$EXPECTED" =~ ^[-A-Za-z0-9._+]+$ && "$EXPECTED" != *-dirty ]] || {
   echo "Invalid expected kernel release: $EXPECTED" >&2
   exit 1
 }

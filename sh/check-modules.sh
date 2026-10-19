@@ -3,7 +3,7 @@
 set -euo pipefail
 ARCHIVE="${1:?Usage: check-modules.sh ARCHIVE KERNEL_RELEASE}"
 KREL="${2:?Usage: check-modules.sh ARCHIVE KERNEL_RELEASE}"
-[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ ]] || { echo "Invalid kernel release: $KREL" >&2; exit 1; }
+[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ && "$KREL" != *-dirty ]] || { echo "Invalid kernel release: $KREL" >&2; exit 1; }
 test -s "$ARCHIVE" || { echo "Missing module archive: $ARCHIVE" >&2; exit 1; }
 command -v zstd >/dev/null || { echo 'zstd is required for module validation' >&2; exit 1; }
 
