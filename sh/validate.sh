@@ -10,9 +10,10 @@ for name in Image.gz sdm632-motorola-channel.dtb kernel.config System.map kernel
   [ -s "$DIR/$name" ] || { echo "ERROR: Invalid kernel checkpoint: missing $DIR/$name" >&2; exit 1; }
 done
 KREL="$(cat "$DIR/kernel-release.txt")"
-case "$KREL" in
-  ''|*-dirty|*/*|*$'\n'*) echo "ERROR: Invalid kernel release '$KREL'" >&2; exit 1;;
-esac
+[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ ]] || {
+  echo "ERROR: Invalid kernel release '$KREL'" >&2
+  exit 1
+}
 MOD="$DIR/kernel-modules-$KREL.tar.zst"
 [ -s "$MOD" ] || { echo "ERROR: Kernel modules missing: $MOD" >&2; exit 1; }
 if [ "$MODE" = --basic ]; then
@@ -33,9 +34,7 @@ for opt in CONFIG_WCN36XX=m CONFIG_QCOM_WCNSS_PIL=m CONFIG_QCOM_WCNSS_CTRL=m CON
   grep -Fxq "$opt" "$DIR/kernel.config" || { echo "ERROR: Kernel config lacks $opt" >&2; exit 1; }
 done
 # Ensure the modules archive actually matches the kernel release.
-tar -I zstd -tf "$MOD" | grep -F "lib/modules/$KREL/" >/dev/null || {
-  echo 'ERROR: Modules archive does not match this kernel release.' >&2; exit 1;
-}
-# Reject mislabeled ELF modules even when the archive path and checksums match.
+# Validate the actual Image.gz version and every module's embedded vermagic.
+bash "$ROOT/sh/check-kernel-release.sh" "$DIR/Image.gz" "$KREL"
 bash "$ROOT/sh/check-modules.sh" "$MOD" "$KREL"
 echo "Validated kernel checkpoint: $KREL ($DIR)"

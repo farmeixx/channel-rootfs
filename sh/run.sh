@@ -30,6 +30,7 @@ SOURCE="$OUT_DIR/$DISTRO-channel-rootfs.ext4.zst"
 [ -s "$SOURCE" ] || { echo "ERROR: Missing rootfs image: $SOURCE" >&2; exit 1; }
 [ -s "$OUT_DIR/build-info.txt" ] || { echo 'ERROR: Missing rootfs build metadata.' >&2; exit 1; }
 grep -Fxq "rootfs_label=$DISTRO" "$OUT_DIR/build-info.txt"
+grep -Fxq "kernel_release=$KREL" "$OUT_DIR/build-info.txt"
 grep -Fxq 'ssh_listen=172.16.42.1' "$OUT_DIR/build-info.txt"
 grep -Fxq 'wifi_runtime_setup=nmcli' "$OUT_DIR/build-info.txt"
 (cd "$OUT_DIR" && sha256sum -c "SHA256SUMS.$DISTRO")
