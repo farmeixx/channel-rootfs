@@ -61,11 +61,19 @@ for sym in "${KERNEL_REQUIRE_M[@]}" "${KERNEL_ENABLE_M[@]}"; do
 done
 echo "::endgroup::"
 
-KREL="$("${MAKE[@]}" -s kernelrelease)"
-case "$KREL" in ""|*-dirty) echo "Invalid kernel release: $KREL" >&2; exit 1;; esac
 echo "::group::Compile kernel"
 "${MAKE[@]}" -j"$JOBS" "$KERNEL_IMAGE_TARGET" dtbs modules
 echo "::endgroup::"
+
+# Build-generated UTS_RELEASE is authoritative, unlike a stale prebuild kernelrelease.
+test -s include/generated/utsrelease.h || {
+  echo "Kernel UTS_RELEASE header was not generated" >&2; exit 1;
+}
+KREL="$(cut -d '"' -f2 include/generated/utsrelease.h)"
+case "$KREL" in
+  ""|*-dirty|*/*) echo "Invalid compiled kernel release: $KREL" >&2; exit 1 ;;
+esac
+echo "Compiled kernel UTS_RELEASE: $KREL"
 
 test -s "$KERNEL_DTB" || { echo "Missing requested DTB: $KERNEL_DTB" >&2; exit 1; }
 test -s "$KERNEL_IMAGE_PATH"
@@ -104,6 +112,7 @@ mkdir -p "$OUT_DIR/modules-root"
 "${MAKE[@]}" KERNELRELEASE="$KREL" INSTALL_MOD_PATH="$OUT_DIR/modules-root" modules_install
 tar -I 'zstd -T0 -10' -cf "$OUT_DIR/kernel-modules-$KREL.tar.zst" \
   -C "$OUT_DIR/modules-root" lib/modules
+bash "$ROOT/sh/check-modules.sh" "$OUT_DIR/kernel-modules-$KREL.tar.zst" "$KREL"
 rm -rf "$OUT_DIR/modules-root"
 echo "::endgroup::"
 {

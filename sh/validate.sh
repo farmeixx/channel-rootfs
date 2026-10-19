@@ -40,4 +40,5 @@ done
 tar -I zstd -tf "$MOD" | grep -F "lib/modules/$KREL/" >/dev/null || {
   echo 'Modules archive does not match release' >&2; exit 1;
 }
+bash "$ROOT/sh/check-modules.sh" "$MOD" "$KREL"
 echo "Validated kernel checkpoint: $KREL"
