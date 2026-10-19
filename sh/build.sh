@@ -64,7 +64,7 @@ echo "::endgroup::"
 # Pin one release for compilation and installation. The generated header,
 # compressed Image.gz and every installed module are validated against it.
 KREL="$("${MAKE[@]}" -s kernelrelease)"
-[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ ]] || {
+[[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ && "$KREL" != *-dirty ]] || {
   echo "Invalid kernel release: $KREL" >&2
   exit 1
 }
