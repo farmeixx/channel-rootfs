@@ -32,7 +32,7 @@ single IIO channel cell. This test checks that address/format in the built DTB.
 
 ## Current configuration
 
-The main kernel now uses **defconfig + QCOM_CPR4PD + QCOM_CLK_APCS_MSM8953** only. The msm8953 fragment was disabled because it changed the compiled boot image size substantially. The battery monitor remains in source but is not enabled until matched kernel/rootfs boot is validated.
+The main kernel uses the upstream **msm8953.config** fragment again, plus explicitly requested CPR4PD/APCS drivers. The upstream fragment's `CONFIG_LOCALVERSION=-Sanders-Revived` is normal; the real regression was that a refactor stopped passing `KERNELRELEASE` to the compilation step while still passing it to `modules_install`. The kernel builder now passes the same release to both and checks the built `UTS_RELEASE` and module ELF `vermagic`. The battery monitor remains disabled until a matched kernel/rootfs boot is validated.
 
 ## How to build
 

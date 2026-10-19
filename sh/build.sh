@@ -61,19 +61,28 @@ for sym in "${KERNEL_REQUIRE_M[@]}" "${KERNEL_ENABLE_M[@]}"; do
 done
 echo "::endgroup::"
 
+# Keep the historical Channel build behavior: override the release used for
+# BOTH kernel/modules compilation and installation. Merely naming the target
+# /lib/modules directory does not change the vermagic embedded in .ko files.
+KREL="$("${MAKE[@]}" -s kernelrelease)"
+case "$KREL" in
+  ""|*-dirty|*/*) echo "Invalid kernel release: $KREL" >&2; exit 1 ;;
+esac
 echo "::group::Compile kernel"
-"${MAKE[@]}" -j"$JOBS" "$KERNEL_IMAGE_TARGET" dtbs modules
+"${MAKE[@]}" -j"$JOBS" KERNELRELEASE="$KREL" "$KERNEL_IMAGE_TARGET" dtbs modules
 echo "::endgroup::"
 
-# Build-generated UTS_RELEASE is authoritative, unlike a stale prebuild kernelrelease.
+# Unlike the old script, also prove the resulting running kernel reports
+# exactly the release used to compile and install its .ko modules.
 test -s include/generated/utsrelease.h || {
   echo "Kernel UTS_RELEASE header was not generated" >&2; exit 1;
 }
-KREL="$(cut -d '"' -f2 include/generated/utsrelease.h)"
-case "$KREL" in
-  ""|*-dirty|*/*) echo "Invalid compiled kernel release: $KREL" >&2; exit 1 ;;
-esac
-echo "Compiled kernel UTS_RELEASE: $KREL"
+BUILT_RELEASE="$(cut -d '"' -f2 include/generated/utsrelease.h)"
+if [ "$BUILT_RELEASE" != "$KREL" ]; then
+  echo "Kernel UTS_RELEASE ($BUILT_RELEASE) differs from packaged release ($KREL)" >&2
+  exit 1
+fi
+echo "Verified compiled kernel UTS_RELEASE: $KREL"
 
 test -s "$KERNEL_DTB" || { echo "Missing requested DTB: $KERNEL_DTB" >&2; exit 1; }
 test -s "$KERNEL_IMAGE_PATH"
