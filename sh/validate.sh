@@ -36,4 +36,6 @@ done
 tar -I zstd -tf "$MOD" | grep -F "lib/modules/$KREL/" >/dev/null || {
   echo 'ERROR: Modules archive does not match this kernel release.' >&2; exit 1;
 }
+# Reject mislabeled ELF modules even when the archive path and checksums match.
+bash "$ROOT/sh/check-modules.sh" "$MOD" "$KREL"
 echo "Validated kernel checkpoint: $KREL ($DIR)"
