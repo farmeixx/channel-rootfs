@@ -24,6 +24,9 @@ printf '%s\n' "$USB_IP_CIDR" | grep -Eq '^[0-9]+(\.[0-9]+){3}/([0-9]|[12][0-9]|3
     echo 'usb-gadget: invalid USB_IP_CIDR' >&2; exit 1;
 }
 
+#------------------------------------------------------------------#
+
+# System identity rendered into the gadget USB strings.
 DISTRO=Linux
 if [ -r /etc/os-release ]; then
     . /etc/os-release
@@ -44,6 +47,11 @@ SERIAL="$DEVICE_NAME-$SERIAL"
 G=/sys/kernel/config/usb_gadget/usb-gadget
 UDC_PATH=/sys/class/udc
 NET_PATH=/sys/class/net
+
+#------------------------------------------------------------------#
+
+# Small helpers: attribute reads, live-gadget detection, cleanup of
+# unbound leftovers, and RNDIS interface bring-up.
 fail() { echo "usb-gadget: $*" >&2; exit 1; }
 read_attr() { [ -r "$1" ] && cat "$1" || true; }
 
@@ -111,6 +119,9 @@ configure_net() {
     echo "usb-gadget: RNDIS ready on $IFACE ($USB_IP_CIDR)"
 }
 
+#------------------------------------------------------------------#
+
+# Prerequisites: configfs mounted and iproute2 available.
 modprobe configfs 2>/dev/null || true
 modprobe libcomposite 2>/dev/null || true
 if ! grep -q ' /sys/kernel/config configfs ' /proc/mounts; then
@@ -119,11 +130,19 @@ fi
 [ -d /sys/kernel/config/usb_gadget ] || fail 'USB gadget ConfigFS is not available'
 command -v ip >/dev/null || fail 'iproute2 not available'
 
+#------------------------------------------------------------------#
+
+# Fast path: a gadget already bound with exactly our settings lives on.
 if [ -d "$G" ] && [ -n "$(read_attr "$G/UDC")" ]; then
     active_matches || fail 'active gadget has different settings; refusing to interrupt USB SSH'
     configure_net
     exit 0
 fi
+
+#------------------------------------------------------------------#
+
+# Fresh setup: wait for a UDC, build the gadget, bind it, then bring the
+# interface up (rollback removes an unbound partial on failure.
 
 # An abandoned, *unbound* gadget can be safely rebuilt.
 [ ! -d "$G" ] || cleanup_unbound
@@ -184,5 +203,8 @@ ln -s "$G/functions/rndis.usb0" "$G/configs/c.1/rndis.usb0"
 ln -s "$G/configs/c.1" "$G/os_desc/c.1"
 printf '%s' "$UDC" > "$G/UDC" || fail "cannot bind gadget to UDC $UDC"
 configure_net
+
+#------------------------------------------------------------------#
+
 created=0
 trap - EXIT
