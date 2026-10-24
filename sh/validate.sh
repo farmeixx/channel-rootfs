@@ -9,6 +9,9 @@ MODE="${1:---full}"
 for name in Image.gz sdm632-motorola-channel.dtb kernel.config System.map kernel-release.txt boot-channel.img SHA256SUMS; do
   [ -s "$DIR/$name" ] || { echo "ERROR: Invalid kernel checkpoint: missing $DIR/$name" >&2; exit 1; }
 done
+
+#------------------------------------------------------------------#
+
 KREL="$(cat "$DIR/kernel-release.txt")"
 [[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ && "$KREL" != *-dirty ]] || {
   echo "ERROR: Invalid kernel release '$KREL'" >&2
@@ -20,6 +23,9 @@ if [ "$MODE" = --basic ]; then
   echo "Kernel checkpoint present: $KREL ($DIR)"
   exit 0
 fi
+
+#------------------------------------------------------------------#
+
 command -v fdtget >/dev/null || { echo 'ERROR: device-tree-compiler missing (fdtget).' >&2; exit 1; }
 command -v zstd >/dev/null || { echo 'ERROR: zstd missing.' >&2; exit 1; }
 (

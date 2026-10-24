@@ -7,6 +7,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 command -v gh >/dev/null || { echo 'ERROR: GitHub CLI missing.' >&2; exit 1; }
 [ -n "${GH_TOKEN:-}" ] || { echo 'ERROR: GH_TOKEN missing.' >&2; exit 1; }
 # Verify the workflow ID; selecting by path alone can reject real mainline runs.
+
+#------------------------------------------------------------------#
+source "$ROOT/sh/ui.sh"
+
 mainline_workflow_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mainline.yml" --jq '.id')"
 [[ "$mainline_workflow_id" =~ ^[0-9]+$ ]] || { echo 'ERROR: Kernel workflow ID unavailable.' >&2; exit 1; }
 is_mainline_run() {
@@ -18,6 +22,10 @@ artifact_for_run() {
   gh api "repos/$GITHUB_REPOSITORY/actions/runs/$1/artifacts?per_page=100" \
     --jq '[.artifacts[] | select(.expired == false and (.name | startswith("channel-mainline-kernel-"))) | .name] | first // empty'
 }
+
+#------------------------------------------------------------------#
+
+ui_step "selecting the newest successful mainline run with a valid checkpoint artifact"
 selected_run=''
 selected_artifact=''
 # Use the newest successful mainline run with a nonexpired kernel artifact.
@@ -33,6 +41,9 @@ while IFS= read -r candidate; do
 done < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow mainline.yml \
     --branch main --status success --limit 50 --json databaseId --jq '.[].databaseId')
 [ -n "$selected_run" ] || { echo 'ERROR: No usable successful mainline kernel checkpoint. Run the dedicated mainline workflow once.' >&2; exit 1; }
+
+#------------------------------------------------------------------#
+
 checkpoint="$ROOT/out/kernel/checkpoint"
 rm -rf "$checkpoint"
 mkdir -p "$checkpoint"

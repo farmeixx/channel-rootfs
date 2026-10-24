@@ -10,6 +10,8 @@ EXPECTED="${2:?Usage: check-kernel-release.sh IMAGE.gz EXPECTED_RELEASE}"
 test -s "$IMAGE" || { echo "Missing kernel image: $IMAGE" >&2; exit 1; }
 command -v gzip >/dev/null || { echo "gzip is required to validate the kernel image" >&2; exit 1; }
 
+#------------------------------------------------------------------#
+
 ACTUAL="$(
   gzip -cd -- "$IMAGE" |
     LC_ALL=C tr '\000' '\n' |
