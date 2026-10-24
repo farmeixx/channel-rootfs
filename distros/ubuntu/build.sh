@@ -18,6 +18,7 @@ UBUNTU_BASE_TARBALL="ubuntu-base-${UBUNTU_VERSION}-base-${UBUNTU_ARCH}.tar.gz"
 UBUNTU_BASE_SHA256="${UBUNTU_BASE_SHA256:-5a1906794ced63a71a8119c3f211ef5f0bbe0a243001b4bbd41fdf80c5b219fd}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_ROOT/sh/ui.sh"
 WORK_DIR="${WORK_DIR:-$REPO_ROOT/.work}"
 ROOTFS="$WORK_DIR/rootfs"
 KREL="$KERNEL_RELEASE"
@@ -25,7 +26,9 @@ KREL="$KERNEL_RELEASE"
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 sudo rm -rf "$ROOTFS"
 
-echo "::group::Create Ubuntu Base ${UBUNTU_VERSION} ${UBUNTU_ARCH} rootfs"
+#------------------------------------------------------------------#
+
+ui_step "fetching Ubuntu Base and installing runtime packages via chroot apt"
 UBUNTU_BASE_PATH="$WORK_DIR/$UBUNTU_BASE_TARBALL"
 curl -fsSL --retry 3 "$UBUNTU_BASE_URL/$UBUNTU_BASE_TARBALL" -o "$UBUNTU_BASE_PATH"
 printf '%s  %s\n' "$UBUNTU_BASE_SHA256" "$UBUNTU_BASE_PATH" | sha256sum -c -
@@ -96,9 +99,10 @@ sudo chroot "$ROOTFS" /bin/sh -ec '
 sudo rm -f "$ROOTFS/usr/sbin/policy-rc.d"
 bootstrap_cleanup_mounts
 trap - EXIT
-echo "::endgroup::"
 
-echo "::group::Install channel headless configuration"
+#------------------------------------------------------------------#
+
+ui_step "configuring the headless Ubuntu services, firmware and usb-gadget"
 sudo cp -a "$REPO_ROOT/common/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/common/systemd/rootfs/." "$ROOTFS/"
 # Install the same Channel-specific UCM2 headphone profile on every distribution.
@@ -164,9 +168,10 @@ test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/pulseaudio-channel.s
 # This device is intentionally headless. Persist the journal so boot/USB
 # failures can be inspected by mounting the microSD on another machine.
 sudo mkdir -p "$ROOTFS/var/log/journal"
-echo "::endgroup::"
 
-echo "::group::Install reusable mainline kernel modules"
+#------------------------------------------------------------------#
+
+ui_step "installing the reusable mainline kernel modules"
 test -s "$KERNEL_MODULES_ARCHIVE"
 sudo tar -I zstd -xf "$KERNEL_MODULES_ARCHIVE" -C "$ROOTFS"
 test -d "$ROOTFS/lib/modules/$KREL"
@@ -174,9 +179,10 @@ sudo depmod -b "$ROOTFS" "$KREL"
 sudo mkdir -p "$ROOTFS/boot"
 sudo cp "$KERNEL_CONFIG_FILE" "$ROOTFS/boot/config-$KREL"
 sudo cp "$KERNEL_SYSTEM_MAP_FILE" "$ROOTFS/boot/System.map-$KREL"
-echo "::endgroup::"
 
-echo "::group::Finalize Ubuntu rootfs"
+#------------------------------------------------------------------#
+
+ui_step "finalizing the Ubuntu rootfs"
 sudo update-binfmts --enable qemu-aarch64 || true
 if [ -x /usr/bin/qemu-aarch64-static ]; then
   sudo install -m 0755 /usr/bin/qemu-aarch64-static "$ROOTFS/usr/bin/qemu-aarch64-static"
@@ -201,9 +207,10 @@ trap - EXIT
 
 # qemu-aarch64-static is a host-side helper and must not ship in the target image.
 sudo rm -f "$ROOTFS/usr/bin/qemu-aarch64-static"
-echo "::endgroup::"
 
-echo "::group::Create ext4 rootfs image"
+#------------------------------------------------------------------#
+
+ui_step "creating the 1024 MiB ext4 image and compressing with zstd"
 # Fixed initial ext4 capacity. The user expands / on userdata with resize2fs.
 # A smaller image is only published if ext4 itself reports safe free space.
 USED_MB="$(sudo du -sm "$ROOTFS" | awk '{print $1}')"
@@ -235,7 +242,6 @@ if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
 fi
 zstd -T0 -10 -f "$ROOTFS_IMG" -o "$ROOTFS_IMG.zst"
 rm -f "$ROOTFS_IMG"
-echo "::endgroup::"
 
 {
   echo "distribution=ubuntu"

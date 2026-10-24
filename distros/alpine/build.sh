@@ -17,6 +17,7 @@ ALPINE_ARCH="${ALPINE_ARCH:-aarch64}"
 APK_TOOLS_STATIC_VERSION="${APK_TOOLS_STATIC_VERSION:-3.0.8-r0}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_ROOT/sh/ui.sh"
 WORK_DIR="${WORK_DIR:-$REPO_ROOT/.work}"
 ROOTFS="$WORK_DIR/rootfs"
 KREL="$KERNEL_RELEASE"
@@ -29,7 +30,9 @@ mkdir -p "$WORK_DIR" "$OUT_DIR"
 sudo rm -rf "$ROOTFS"
 sudo mkdir -p "$ROOTFS"
 
-echo "::group::Create Alpine ${ALPINE_VERSION} ${ALPINE_ARCH} rootfs"
+#------------------------------------------------------------------#
+
+ui_step "fetching and unpacking the Alpine minirootfs base"
 curl -fsSL --retry 3 "$MINIROOTFS_URL" -o "$MINIROOTFS_PATH"
 curl -fsSL --retry 3 "$MINIROOTFS_URL.sha256" -o "$MINIROOTFS_SHA_PATH"
 (
@@ -99,9 +102,10 @@ sudo "$APK_STATIC" \
     pulseaudio pulseaudio-alsa pulseaudio-utils alsa-plugins-pulse
 
 sudo chroot "$ROOTFS" /usr/sbin/update-ca-certificates
-echo "::endgroup::"
 
-echo "::group::Install Channel Alpine headless configuration"
+#------------------------------------------------------------------#
+
+ui_step "configuring the headless Alpine services, firmware and usb-gadget"
 sudo cp -a "$REPO_ROOT/distros/alpine/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/common/rootfs/." "$ROOTFS/"
 # Install the same Channel-specific UCM2 headphone profile on every distribution.
@@ -196,9 +200,10 @@ fi
 
 # Keep persistent logs for headless bring-up.
 sudo install -d -m 0755 "$ROOTFS/var/log"
-echo "::endgroup::"
 
-echo "::group::Install reusable mainline kernel modules"
+#------------------------------------------------------------------#
+
+ui_step "installing the reusable mainline kernel modules"
 test -s "$KERNEL_MODULES_ARCHIVE"
 sudo tar -I zstd -xf "$KERNEL_MODULES_ARCHIVE" -C "$ROOTFS"
 test -d "$ROOTFS/lib/modules/$KREL"
@@ -206,21 +211,23 @@ sudo depmod -b "$ROOTFS" "$KREL"
 sudo mkdir -p "$ROOTFS/boot"
 sudo cp "$KERNEL_CONFIG_FILE" "$ROOTFS/boot/config-$KREL"
 sudo cp "$KERNEL_SYSTEM_MAP_FILE" "$ROOTFS/boot/System.map-$KREL"
-echo "::endgroup::"
 
-echo "::group::Finalize Alpine rootfs"
+#------------------------------------------------------------------#
+
+ui_step "finalizing the Alpine rootfs"
 sudo chroot "$ROOTFS" /usr/sbin/sshd -t
 
 # qemu-aarch64-static is a host-side helper and must not ship in the target image.
 sudo rm -f "$ROOTFS/usr/bin/qemu-aarch64-static"
-echo "::endgroup::"
 
 # All target chroot operations are complete. Remove the temporary host /dev
 # bind before materializing the filesystem image.
 cleanup_apk_dev
 trap - EXIT
 
-echo "::group::Create 1024 MiB Alpine ext4 rootfs image"
+#------------------------------------------------------------------#
+
+ui_step "creating the 1024 MiB ext4 image and compressing with zstd"
 # Remove apk's download/index cache, not installed packages, Wi-Fi firmware, or kernel modules.
 # The existing gadget, NetworkManager and SSH configuration are kept intact.
 if [ -d "$ROOTFS/var/cache/apk" ]; then
@@ -261,7 +268,6 @@ if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
 fi
 zstd -T0 -10 -f "$ROOTFS_IMG" -o "$ROOTFS_IMG.zst"
 rm -f "$ROOTFS_IMG"
-echo "::endgroup::"
 
 {
   echo "distribution=alpine"

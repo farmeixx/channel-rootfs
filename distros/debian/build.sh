@@ -11,6 +11,7 @@ DISTRO="${DISTRO:-debian}"
 ROOTFS_LABEL="${ROOTFS_LABEL:-debian}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_ROOT/sh/ui.sh"
 WORK_DIR="${WORK_DIR:-$REPO_ROOT/.work}"
 ROOTFS="$WORK_DIR/rootfs"
 KREL="$KERNEL_RELEASE"
@@ -22,7 +23,9 @@ test -s "$KERNEL_SYSTEM_MAP_FILE"
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 sudo rm -rf "$ROOTFS"
 
-echo "::group::Create Debian 13 (trixie) arm64 rootfs"
+#------------------------------------------------------------------#
+
+ui_step "bootstrapping the Debian trixie arm64 rootfs with mmdebstrap"
 sudo mmdebstrap \
   --architectures=arm64 \
   --variant=minbase \
@@ -31,9 +34,10 @@ sudo mmdebstrap \
   --aptopt='Apt::Install-Recommends "false"' \
   --include=debian-archive-keyring,systemd-sysv,openssh-server,iproute2,iputils-ping,dnsmasq,ca-certificates,kmod,udev,busybox-static,e2fsprogs,util-linux,procps,less,nano,ethtool,openssh-client,iw,wpasupplicant,wireless-regdb,dbus,network-manager,alsa-utils,alsa-ucm-conf,pulseaudio,pulseaudio-utils,libasound2-plugins \
   trixie "$ROOTFS" https://deb.debian.org/debian
-echo "::endgroup::"
 
-echo "::group::Install Channel Debian configuration"
+#------------------------------------------------------------------#
+
+ui_step "configuring the headless Debian services, firmware and usb-gadget"
 sudo cp -a "$REPO_ROOT/common/rootfs/." "$ROOTFS/"
 sudo cp -a "$REPO_ROOT/common/systemd/rootfs/." "$ROOTFS/"
 # Install the same Channel-specific UCM2 headphone profile on every distribution.
@@ -86,18 +90,20 @@ sudo systemctl --root="$ROOTFS" enable \
 sudo systemctl --root="$ROOTFS" enable ssh.service
 
 sudo mkdir -p "$ROOTFS/var/log/journal"
-echo "::endgroup::"
 
-echo "::group::Install reusable mainline kernel modules"
+#------------------------------------------------------------------#
+
+ui_step "installing the reusable mainline kernel modules"
 sudo tar -I zstd -xf "$KERNEL_MODULES_ARCHIVE" -C "$ROOTFS"
 test -d "$ROOTFS/lib/modules/$KREL"
 sudo depmod -b "$ROOTFS" "$KREL"
 sudo mkdir -p "$ROOTFS/boot"
 sudo cp "$KERNEL_CONFIG_FILE" "$ROOTFS/boot/config-$KREL"
 sudo cp "$KERNEL_SYSTEM_MAP_FILE" "$ROOTFS/boot/System.map-$KREL"
-echo "::endgroup::"
 
-echo "::group::Validate Debian rootfs"
+#------------------------------------------------------------------#
+
+ui_step "validating the Debian rootfs in a mounted chroot"
 sudo update-binfmts --enable qemu-aarch64 || true
 if [ -x /usr/bin/qemu-aarch64-static ]; then
   sudo install -m 0755 /usr/bin/qemu-aarch64-static "$ROOTFS/usr/bin/qemu-aarch64-static"
@@ -126,9 +132,10 @@ test -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/ssh.service"
 cleanup_mounts
 trap - EXIT
 sudo rm -f "$ROOTFS/usr/bin/qemu-aarch64-static"
-echo "::endgroup::"
 
-echo "::group::Create Debian ext4 image"
+#------------------------------------------------------------------#
+
+ui_step "creating the 1024 MiB ext4 image and compressing with zstd"
 # Fixed initial ext4 capacity. The user expands / on userdata with resize2fs.
 # A smaller image is only published if ext4 itself reports safe free space.
 USED_MB="$(sudo du -sm "$ROOTFS" | awk '{print $1}')"
@@ -160,7 +167,6 @@ if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
 fi
 zstd -T0 -10 -f "$ROOTFS_IMG" -o "$ROOTFS_IMG.zst"
 rm -f "$ROOTFS_IMG"
-echo "::endgroup::"
 
 {
   echo "distro=$DISTRO"
