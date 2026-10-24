@@ -12,6 +12,19 @@ source "$CONF"
 : "${KERNEL_MKBOOTIMG_URL:?set KERNEL_MKBOOTIMG_URL}"
 : "${KERNEL_MKBOOTIMG_REF:?set KERNEL_MKBOOTIMG_REF}"
 
+#------------------------------------------------------------------#
+
+# Log presentation stays outside the build logic: sh/ui.sh only prints the
+# phase banner, step subtitles and result banners. The EXIT trap keeps the
+# real status: on failure it prints B U I L D F A I L E D and exits.
+source "$ROOT/sh/ui.sh"
+trap 'rc=$?; if [ "$rc" -ne 0 ]; then ui_failed; fi; exit "$rc"' EXIT
+
+ui_banner "BUILDING MAINLINE KERNEL"
+
+#------------------------------------------------------------------#
+
+ui_step "installing build host dependencies for the kernel profile"
 source "$ROOT/sh/deps.sh"
 install_host_deps kernel
 WORK="$ROOT/.work/kernel"
@@ -31,8 +44,14 @@ echo "ccache active for ${KERNEL_CROSS_COMPILE}gcc"
 rm -rf "$KERNEL_DIR" "$STAGING"
 mkdir -p "$STAGING"
 
+#------------------------------------------------------------------#
+
+# Source checkout: resolve the requested head first so the clone can be
+# proven to point exactly at that commit; a shifted ref aborts the build.
+ui_step "checking $KERNEL_REF head of $KERNEL_URL"
 SOURCE_SHA="$(git ls-remote "$KERNEL_URL" "refs/heads/$KERNEL_REF" | awk 'NR==1 {print $1}')"
 test -n "$SOURCE_SHA" || { echo "Kernel ref unavailable: $KERNEL_REF" >&2; exit 1; }
+ui_step "cloning into $KERNEL_DIR (depth 1)"
 git clone --depth=1 --branch "$KERNEL_REF" "$KERNEL_URL" "$KERNEL_DIR"
 test "$(git -C "$KERNEL_DIR" rev-parse HEAD)" = "$SOURCE_SHA" || {
   echo 'Kernel ref advanced while cloning; retry the build' >&2; exit 1;
@@ -40,6 +59,7 @@ test "$(git -C "$KERNEL_DIR" rev-parse HEAD)" = "$SOURCE_SHA" || {
 printf 'kernel_url=%s\nkernel_ref=%s\nkernel_source_sha=%s\n' \
   "$KERNEL_URL" "$KERNEL_REF" "$SOURCE_SHA" > "$STAGING/source-report.txt"
 export KERNEL_DIR OUT_DIR="$STAGING"
+ui_step "building the kernel artifact set (build.sh)"
 bash "$ROOT/sh/build.sh"
 KREL="$(cat "$STAGING/kernel-release.txt")"
 DTB_NAME="${KERNEL_DTB##*/}"
@@ -51,17 +71,29 @@ DTB_NAME="${KERNEL_DTB##*/}"
   done
 } >> "$STAGING/source-report.txt"
 
+#------------------------------------------------------------------#
+
+# mkbootimg tool checkout: always at one exact commit; a matching existing
+# checkout is reused instead of being refetched.
 if [ ! -s "$MKBOOT_DIR/mkbootimg.py" ] || \
    [ "$(git -C "$MKBOOT_DIR" rev-parse HEAD 2>/dev/null || true)" != "$KERNEL_MKBOOTIMG_REF" ]; then
+  ui_step "cloning mkbootimg into $MKBOOT_DIR (ref $KERNEL_MKBOOTIMG_REF)"
   rm -rf "$MKBOOT_DIR"
   git init -q "$MKBOOT_DIR"
   git -C "$MKBOOT_DIR" remote add origin "$KERNEL_MKBOOTIMG_URL"
   git -C "$MKBOOT_DIR" fetch --depth=1 origin "$KERNEL_MKBOOTIMG_REF"
   git -C "$MKBOOT_DIR" checkout -q --detach FETCH_HEAD
+else
+  ui_step "reusing mkbootimg (local valid checkout): $MKBOOT_DIR"
 fi
+
 test "$(git -C "$MKBOOT_DIR" rev-parse HEAD)" = "$KERNEL_MKBOOTIMG_REF"
 python3 "$MKBOOT_DIR/mkbootimg.py" --help >/dev/null
 python3 "$MKBOOT_DIR/unpack_bootimg.py" --help >/dev/null
+
+#------------------------------------------------------------------#
+
+ui_step "packing $KERNEL_BOOT_NAME (kernel = Image.gz + DTB)"
 export KERNEL_RELEASE="$KREL" KERNEL_IMAGE="$STAGING/Image.gz" \
   KERNEL_DTB_FILE="$STAGING/$DTB_NAME" MKBOOTIMG_PY="$MKBOOT_DIR/mkbootimg.py"
 bash "$ROOT/sh/bootimg.sh"
@@ -69,6 +101,12 @@ bash "$ROOT/sh/bootimg.sh"
 grep -Fq "root=$KERNEL_ROOT_DEVICE" "$STAGING/kernel-cmdline.txt" || {
   echo "Boot cmdline root does not match KERNEL_ROOT_DEVICE" >&2; exit 1;
 }
+
+#------------------------------------------------------------------#
+
+# Restart of the packed image: the cmdline must contain the configured root
+# device, the payload must equal Image.gz + DTB and no ramdisk may appear.
+ui_step "unpacking $KERNEL_BOOT_NAME and verifying payload + cmdline"
 UNPACKED="$WORK/unpacked-boot"
 rm -rf "$UNPACKED"
 python3 "$MKBOOT_DIR/unpack_bootimg.py" --boot_img "$STAGING/$KERNEL_BOOT_NAME" --out "$UNPACKED"
@@ -78,6 +116,10 @@ cmp -s "$UNPACKED/kernel" "$STAGING/Image.gz-dtb" || {
   exit 1
 }
 test ! -s "$UNPACKED/ramdisk"
+
+#------------------------------------------------------------------#
+
+ui_step "assembling the checkpoint files and SHA256SUMS"
 printf 'root_device=%s\n' "$KERNEL_ROOT_DEVICE" >> "$STAGING/kernel-info.txt"
 cp "$CONF" "$STAGING/mainline.conf"
 (
@@ -89,8 +131,14 @@ cp "$CONF" "$STAGING/mainline.conf"
   done
   sha256sum "${files[@]}" > SHA256SUMS
 )
+ui_step "validating the finished checkpoint (checksums, DTB, vermagic)"
 KERNEL_CHECKPOINT_DIR="$STAGING" bash "$ROOT/sh/validate.sh" --full
 
+#------------------------------------------------------------------#
+
+# Publish atomically: staging only becomes the checkpoint once validation
+# succeeded; the previous checkpoint is kept until the move completes.
+ui_step "publishing checkpoint to out/kernel/checkpoint"
 PREVIOUS="$ROOT/out/kernel/.checkpoint-previous"
 rm -rf "$PREVIOUS"
 if [ -d "$CHECKPOINT" ]; then mv "$CHECKPOINT" "$PREVIOUS"; fi
@@ -105,3 +153,11 @@ cp -f "$CHECKPOINT/$KERNEL_BOOT_NAME" "$IMAGES/$KERNEL_BOOT_NAME"
 rm -rf "$PREVIOUS"
 printf '\nKernel build complete: %s\n' "$KREL"
 ccache --show-stats
+
+
+#------------------------------------------------------------------#
+
+ui_success
+ui_saved "boot.img" "out/kernel/images/boot.img"
+ui_saved "kernel checkpoint" "out/kernel/checkpoint"
+ui_saved "module archive" "out/kernel/checkpoint/kernel-modules-$KREL.tar.zst"

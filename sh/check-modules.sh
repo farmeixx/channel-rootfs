@@ -7,6 +7,8 @@ KREL="${2:?Usage: check-modules.sh ARCHIVE KERNEL_RELEASE}"
 test -s "$ARCHIVE" || { echo "Missing module archive: $ARCHIVE" >&2; exit 1; }
 command -v zstd >/dev/null || { echo 'zstd is required for module validation' >&2; exit 1; }
 
+#------------------------------------------------------------------#
+
 ENTRIES="$(tar -I zstd -tf "$ARCHIVE")" || {
   echo "Unable to read module archive: $ARCHIVE" >&2
   exit 1
@@ -23,6 +25,8 @@ while IFS= read -r entry; do
       ;;
   esac
 done <<< "$ENTRIES"
+
+#------------------------------------------------------------------#
 
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
@@ -74,6 +78,8 @@ module_vermagic() {
       }
     '
 }
+
+#------------------------------------------------------------------#
 
 MODULE_COUNT=0
 while IFS= read -r -d '' module; do

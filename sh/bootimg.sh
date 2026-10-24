@@ -10,6 +10,10 @@ DTB_FILE="${KERNEL_DTB_FILE:-$OUT_DIR/${KERNEL_DTB##*/}}"
 IMAGE_FILE="${KERNEL_IMAGE:-$OUT_DIR/Image.gz}"
 test -s "$DTB_FILE"
 test -s "$IMAGE_FILE"
+
+#------------------------------------------------------------------#
+
+# Concatenate the validated Image.gz and DTB, then pack the boot image
 KERNEL_DTB_IMAGE="$OUT_DIR/Image.gz-dtb-$KERNEL_RELEASE"
 cat "$IMAGE_FILE" "$DTB_FILE" > "$KERNEL_DTB_IMAGE"
 if [ -n "${MKBOOTIMG_PY:-}" ]; then
@@ -28,6 +32,10 @@ fi
   --tags_offset "$KERNEL_BOOT_TAGS_OFFSET" \
   --pagesize "$KERNEL_BOOT_PAGE_SIZE" \
   --output "$OUT_DIR/$KERNEL_BOOT_NAME"
+
+#------------------------------------------------------------------#
+
+# The boot image is capped by the boot volume limit from mainline.conf.
 BOOT_SIZE="$(stat -c %s "$OUT_DIR/$KERNEL_BOOT_NAME")"
 if [ "$BOOT_SIZE" -gt $((KERNEL_BOOT_SIZE_LIMIT_MIB * 1024 * 1024)) ]; then
   echo "Boot image too large: $BOOT_SIZE" >&2

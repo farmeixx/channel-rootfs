@@ -2,6 +2,12 @@
 # Generic kernel builder: source, fragments, DTB and options are from mainline.conf.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+#------------------------------------------------------------------#
+
+# sh/ui.sh is sourced before the conf so helpers exist even when a
+# parameter check aborts the run.
+source "$ROOT/sh/ui.sh"
 source "${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 : "${KERNEL_DIR:?set KERNEL_DIR}"
 : "${OUT_DIR:?set OUT_DIR}"
@@ -17,7 +23,9 @@ mkdir -p "$OUT_DIR"
 cd "$KERNEL_DIR"
 MAKE=(make ARCH="$KERNEL_ARCH" CROSS_COMPILE="$KERNEL_CROSS_COMPILE")
 
-echo "::group::Kernel configuration"
+#------------------------------------------------------------------#
+
+ui_step "configuring kernel .config from ${KERNEL_BASE_CONFIG} + fragments"
 "${MAKE[@]}" "$KERNEL_BASE_CONFIG"
 fragments=()
 for fragment in "${KERNEL_CONFIG_1:-}" "${KERNEL_CONFIG_2:-}"; do
@@ -59,7 +67,6 @@ for sym in "${KERNEL_REQUIRE_M[@]}" "${KERNEL_ENABLE_M[@]}"; do
     echo "Kernel config needs CONFIG_${sym#CONFIG_}=m" >&2; exit 1;
   }
 done
-echo "::endgroup::"
 
 # Pin one release for compilation and installation. The generated header,
 # compressed Image.gz and every installed module are validated against it.
@@ -68,12 +75,18 @@ KREL="$("${MAKE[@]}" -s kernelrelease)"
   echo "Invalid kernel release: $KREL" >&2
   exit 1
 }
-echo "::group::Compile kernel"
+
+#------------------------------------------------------------------#
+
+ui_step "compiling ${KERNEL_IMAGE_TARGET}, dtbs and modules ($JOBS jobs)"
 "${MAKE[@]}" -j"$JOBS" KERNELRELEASE="$KREL" "$KERNEL_IMAGE_TARGET" dtbs modules
-echo "::endgroup::"
 
 # Unlike the old script, also prove the resulting running kernel reports
 # exactly the release used to compile and install its .ko modules.
+
+#------------------------------------------------------------------#
+
+ui_step "verifying built outputs (UTS release, image release, DTB sanity)"
 test -s include/generated/utsrelease.h || {
   echo "Kernel UTS_RELEASE header was not generated" >&2; exit 1;
 }
@@ -93,6 +106,10 @@ if [ -n "${KERNEL_DTB_CHECK_NODE:-}" ]; then
     echo "DTB validation failed: $KERNEL_DTB_CHECK_NODE" >&2; exit 1;
   }
 fi
+
+#------------------------------------------------------------------#
+
+ui_step "staging kernel files (Image, DTB, config, System.map, fragments)"
 DTB_BASENAME="${KERNEL_DTB##*/}"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz-$KREL"
@@ -116,7 +133,9 @@ for idx in "${!fragments[@]}"; do
   cp "${fragments[$idx]}" "$OUT_DIR/config-fragment-$((idx + 1)).config"
 done
 
-echo "::group::Package modules"
+#------------------------------------------------------------------#
+
+ui_step "packaging modules into kernel-modules-$KREL.tar.zst"
 rm -rf "$OUT_DIR/modules-root"
 mkdir -p "$OUT_DIR/modules-root"
 "${MAKE[@]}" KERNELRELEASE="$KREL" INSTALL_MOD_PATH="$OUT_DIR/modules-root" modules_install
@@ -124,8 +143,10 @@ tar -I 'zstd -T0 -10' -cf "$OUT_DIR/kernel-modules-$KREL.tar.zst" \
   -C "$OUT_DIR/modules-root" lib/modules
 bash "$ROOT/sh/check-modules.sh" "$OUT_DIR/kernel-modules-$KREL.tar.zst" "$KREL"
 rm -rf "$OUT_DIR/modules-root"
-echo "::endgroup::"
 {
+
+#------------------------------------------------------------------#
+
   printf 'kernel_release=%s\nkernel_git_revision=%s\narchitecture=%s\ndtb=%s\n' \
     "$KREL" "$(git rev-parse HEAD)" "$KERNEL_ARCH" "$DTB_BASENAME"
 } > "$OUT_DIR/kernel-info.txt"

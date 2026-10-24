@@ -10,6 +10,9 @@ DTB_NAME="${KERNEL_DTB##*/}"
 for name in Image.gz "$DTB_NAME" kernel.config System.map kernel-release.txt "$KERNEL_BOOT_NAME" SHA256SUMS; do
   test -s "$DIR/$name" || { echo "Missing checkpoint file: $name" >&2; exit 1; }
 done
+
+#------------------------------------------------------------------#
+
 KREL="$(cat "$DIR/kernel-release.txt")"
 [[ "$KREL" =~ ^[-A-Za-z0-9._+]+$ && "$KREL" != *-dirty ]] || { echo "Invalid kernel release: $KREL" >&2; exit 1; }
 MOD="$DIR/kernel-modules-$KREL.tar.zst"
@@ -27,6 +30,9 @@ if [ -n "${KERNEL_DTB_CHECK_NODE:-}" ]; then
     echo 'DTB compatible check failed' >&2; exit 1;
   }
 fi
+
+#------------------------------------------------------------------#
+
 for sym in "${KERNEL_REQUIRE_Y[@]}"; do
   grep -qx "CONFIG_${sym#CONFIG_}=y" "$DIR/kernel.config" || {
     echo "Missing required built-in config: $sym" >&2; exit 1;

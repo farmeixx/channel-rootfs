@@ -2,6 +2,8 @@
 # Host-side dependencies copied from the existing Ubuntu 24.04 workflow steps.
 set -euo pipefail
 
+#------------------------------------------------------------------#
+
 # Ubuntu on WSL may install qemu-user-static without activating its binfmt
 # registration.  Register only the aarch64 interpreter; do not restart the
 # global systemd-binfmt service (which can disrupt WSLInterop).
@@ -43,6 +45,8 @@ ensure_aarch64_binfmt() {
   }
   echo 'QEMU AArch64 binfmt is enabled.'
 }
+
+#------------------------------------------------------------------#
 
 install_host_deps() {
   local profile="${1:?profile required}"
