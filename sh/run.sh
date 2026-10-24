@@ -15,7 +15,7 @@ trap 'rc=$?; if [ "$rc" -ne 0 ]; then ui_failed; fi; exit "$rc"' EXIT
 CHECKPOINT="${KERNEL_CHECKPOINT_DIR:-$ROOT/out/kernel/checkpoint}"
 CHECKPOINT="$(realpath -m "$CHECKPOINT")"
 # Deliberately fail before installing packages or downloading a rootfs.
-ui_step "validating the reused kernel checkpoint (basic)"
+ui_step "validating the reused kernel checkpoint"
 KERNEL_CHECKPOINT_DIR="$CHECKPOINT" bash "$ROOT/sh/validate.sh" --basic
 # Check complete device firmware before installing dependencies.
 ui_step "checking complete device firmware"
@@ -42,7 +42,7 @@ export WORK_DIR OUT_DIR
 
 #------------------------------------------------------------------#
 
-ui_step "building the $DISTRO rootfs (distros/$DISTRO/build.sh)"
+ui_step "building the $DISTRO rootfs"
 bash "$ROOT/distros/$DISTRO/build.sh"
 
 ui_step "verifying artifacts and metadata"
@@ -55,7 +55,7 @@ grep -Fxq 'ssh_listen=172.16.42.1' "$OUT_DIR/build-info.txt"
 grep -Fxq 'wifi_runtime_setup=nmcli' "$OUT_DIR/build-info.txt"
 (cd "$OUT_DIR" && sha256sum -c "SHA256SUMS.$DISTRO")
 # Reuse the boot image from the validated kernel checkpoint.
-ui_step "reusing the checkpoint boot image (local): $CHECKPOINT/boot-channel.img"
+ui_step "reusing the checkpoint boot image from $CHECKPOINT/boot-channel.img"
 cp -f "$CHECKPOINT/boot-channel.img" "$OUT_DIR/boot.img"
 ui_step "expanding rootfs.ext4 for final verification"
 zstd -d -f "$SOURCE" -o "$OUT_DIR/rootfs.ext4"

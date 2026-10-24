@@ -30,11 +30,11 @@ WORK="$ROOT/.work/firmware"
 mkdir -p "$WORK"
 if [ -n "${FIRMWARE_SOURCE_DIR:-}" ]; then
   SOURCE="$(realpath "$FIRMWARE_SOURCE_DIR")"
-  ui_step "reusing firmware from FIRMWARE_SOURCE_DIR: $SOURCE"
+  ui_step "reusing firmware from $SOURCE"
   test -d "$SOURCE" || { echo "Firmware directory missing: $SOURCE" >&2; exit 1; }
 elif [ -n "${FIRMWARE_LOCAL_PATH:-}" ] && [ -d "$ROOT/$FIRMWARE_LOCAL_PATH" ]; then
   SOURCE="$(realpath "$ROOT/$FIRMWARE_LOCAL_PATH")"
-  ui_step "reusing firmware (local): $SOURCE"
+  ui_step "reusing firmware from $SOURCE"
 elif [ -n "${FIRMWARE_SOURCE_ARCHIVE:-}" ]; then
   command -v bsdtar >/dev/null || { echo "RAR input requires bsdtar (libarchive-tools)" >&2; exit 1; }
   ARCHIVE="$(realpath "$FIRMWARE_SOURCE_ARCHIVE")"
@@ -45,7 +45,7 @@ elif [ -n "${FIRMWARE_SOURCE_ARCHIVE:-}" ]; then
   SOURCE="$WORK/archive"
   rm -rf "$SOURCE"
   mkdir -p "$SOURCE"
-  ui_step "unpacking firmware archive: $ARCHIVE"
+  ui_step "unpacking firmware archive $ARCHIVE"
   bsdtar -xf "$ARCHIVE" -C "$SOURCE"
 else
   command -v git >/dev/null || { echo 'git required to fetch firmware' >&2; exit 1; }

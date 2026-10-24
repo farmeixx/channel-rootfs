@@ -30,7 +30,7 @@ ui_step() {
 
 # Success summary line, e.g.: ui_saved "boot.img" "out/kernel/images/boot.img".
 ui_saved() {
-  printf '%s\n' "  $1 saved in $2"
+  printf '%s\n' "$1 saved in $2"
 }
 
 # Final success banner; callers list ui_saved lines below it.
