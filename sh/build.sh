@@ -25,7 +25,7 @@ MAKE=(make ARCH="$KERNEL_ARCH" CROSS_COMPILE="$KERNEL_CROSS_COMPILE")
 
 #------------------------------------------------------------------#
 
-ui_step "configuring kernel .config from ${KERNEL_BASE_CONFIG} + fragments"
+ui_step "configuring kernel .config from ${KERNEL_BASE_CONFIG} and fragments"
 "${MAKE[@]}" "$KERNEL_BASE_CONFIG"
 fragments=()
 for fragment in "${KERNEL_CONFIG_1:-}" "${KERNEL_CONFIG_2:-}"; do
@@ -78,7 +78,7 @@ KREL="$("${MAKE[@]}" -s kernelrelease)"
 
 #------------------------------------------------------------------#
 
-ui_step "compiling ${KERNEL_IMAGE_TARGET}, dtbs and modules ($JOBS jobs)"
+ui_step "compiling ${KERNEL_IMAGE_TARGET}, dtbs and modules in $JOBS jobs"
 "${MAKE[@]}" -j"$JOBS" KERNELRELEASE="$KREL" "$KERNEL_IMAGE_TARGET" dtbs modules
 
 # Unlike the old script, also prove the resulting running kernel reports
@@ -86,7 +86,7 @@ ui_step "compiling ${KERNEL_IMAGE_TARGET}, dtbs and modules ($JOBS jobs)"
 
 #------------------------------------------------------------------#
 
-ui_step "verifying built outputs (UTS release, image release, DTB sanity)"
+ui_step "verifying built outputs"
 test -s include/generated/utsrelease.h || {
   echo "Kernel UTS_RELEASE header was not generated" >&2; exit 1;
 }
@@ -109,7 +109,7 @@ fi
 
 #------------------------------------------------------------------#
 
-ui_step "staging kernel files (Image, DTB, config, System.map, fragments)"
+ui_step "staging kernel files"
 DTB_BASENAME="${KERNEL_DTB##*/}"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz"
 cp "$KERNEL_IMAGE_PATH" "$OUT_DIR/Image.gz-$KREL"

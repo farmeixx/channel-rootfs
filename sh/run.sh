@@ -51,7 +51,7 @@ mkdir -p "$STAGING"
 ui_step "checking $KERNEL_REF head of $KERNEL_URL"
 SOURCE_SHA="$(git ls-remote "$KERNEL_URL" "refs/heads/$KERNEL_REF" | awk 'NR==1 {print $1}')"
 test -n "$SOURCE_SHA" || { echo "Kernel ref unavailable: $KERNEL_REF" >&2; exit 1; }
-ui_step "cloning into $KERNEL_DIR (depth 1)"
+ui_step "cloning into $KERNEL_DIR at depth 1"
 git clone --depth=1 --branch "$KERNEL_REF" "$KERNEL_URL" "$KERNEL_DIR"
 test "$(git -C "$KERNEL_DIR" rev-parse HEAD)" = "$SOURCE_SHA" || {
   echo 'Kernel ref advanced while cloning; retry the build' >&2; exit 1;
@@ -59,7 +59,7 @@ test "$(git -C "$KERNEL_DIR" rev-parse HEAD)" = "$SOURCE_SHA" || {
 printf 'kernel_url=%s\nkernel_ref=%s\nkernel_source_sha=%s\n' \
   "$KERNEL_URL" "$KERNEL_REF" "$SOURCE_SHA" > "$STAGING/source-report.txt"
 export KERNEL_DIR OUT_DIR="$STAGING"
-ui_step "building the kernel artifact set (build.sh)"
+ui_step "building the kernel artifact set"
 bash "$ROOT/sh/build.sh"
 KREL="$(cat "$STAGING/kernel-release.txt")"
 DTB_NAME="${KERNEL_DTB##*/}"
@@ -77,14 +77,14 @@ DTB_NAME="${KERNEL_DTB##*/}"
 # checkout is reused instead of being refetched.
 if [ ! -s "$MKBOOT_DIR/mkbootimg.py" ] || \
    [ "$(git -C "$MKBOOT_DIR" rev-parse HEAD 2>/dev/null || true)" != "$KERNEL_MKBOOTIMG_REF" ]; then
-  ui_step "cloning mkbootimg into $MKBOOT_DIR (ref $KERNEL_MKBOOTIMG_REF)"
+  ui_step "cloning mkbootimg into $MKBOOT_DIR at $KERNEL_MKBOOTIMG_REF"
   rm -rf "$MKBOOT_DIR"
   git init -q "$MKBOOT_DIR"
   git -C "$MKBOOT_DIR" remote add origin "$KERNEL_MKBOOTIMG_URL"
   git -C "$MKBOOT_DIR" fetch --depth=1 origin "$KERNEL_MKBOOTIMG_REF"
   git -C "$MKBOOT_DIR" checkout -q --detach FETCH_HEAD
 else
-  ui_step "reusing mkbootimg (local valid checkout): $MKBOOT_DIR"
+  ui_step "reusing mkbootimg checkout $MKBOOT_DIR"
 fi
 
 test "$(git -C "$MKBOOT_DIR" rev-parse HEAD)" = "$KERNEL_MKBOOTIMG_REF"
@@ -93,7 +93,7 @@ python3 "$MKBOOT_DIR/unpack_bootimg.py" --help >/dev/null
 
 #------------------------------------------------------------------#
 
-ui_step "packing $KERNEL_BOOT_NAME (kernel = Image.gz + DTB)"
+ui_step "packing $KERNEL_BOOT_NAME with Image.gz and DTB"
 export KERNEL_RELEASE="$KREL" KERNEL_IMAGE="$STAGING/Image.gz" \
   KERNEL_DTB_FILE="$STAGING/$DTB_NAME" MKBOOTIMG_PY="$MKBOOT_DIR/mkbootimg.py"
 bash "$ROOT/sh/bootimg.sh"
@@ -106,7 +106,7 @@ grep -Fq "root=$KERNEL_ROOT_DEVICE" "$STAGING/kernel-cmdline.txt" || {
 
 # Restart of the packed image: the cmdline must contain the configured root
 # device, the payload must equal Image.gz + DTB and no ramdisk may appear.
-ui_step "unpacking $KERNEL_BOOT_NAME and verifying payload + cmdline"
+ui_step "unpacking $KERNEL_BOOT_NAME, verifying payload and cmdline"
 UNPACKED="$WORK/unpacked-boot"
 rm -rf "$UNPACKED"
 python3 "$MKBOOT_DIR/unpack_bootimg.py" --boot_img "$STAGING/$KERNEL_BOOT_NAME" --out "$UNPACKED"
@@ -131,7 +131,7 @@ cp "$CONF" "$STAGING/mainline.conf"
   done
   sha256sum "${files[@]}" > SHA256SUMS
 )
-ui_step "validating the finished checkpoint (checksums, DTB, vermagic)"
+ui_step "validating the finished checkpoint"
 KERNEL_CHECKPOINT_DIR="$STAGING" bash "$ROOT/sh/validate.sh" --full
 
 #------------------------------------------------------------------#
