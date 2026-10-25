@@ -10,15 +10,12 @@ then installs two Channel NV aliases for the WCN36xx driver and DT.
 This installs WCNSS, ADSP, modem, Venus, GPU and touchscreen firmware;
 firmware binaries are copied, **not compiled**.
 
-The checked-in old WCNSS fallback/segmented b06 package was removed.
-The default source is the full Channel firmware repository vendored at
-`firmware/channel/source/` when available. If not yet imported, the installer
-clones the original GitLab repository. No firmware sets are mixed.
-The user-tested Channel RAR contains the same layout and can also be used
-offline with `FIRMWARE_SOURCE_ARCHIVE=/path/to/channel-firmware.rar` (requires
-`bsdtar`) or its extracted contents with `FIRMWARE_SOURCE_DIR=/path/to/extracted`.
-The optional archive SHA256 is defined in firmware.conf. No large binary payload
-is stored in this rootfs branch.
+The firmware is not stored in this repository: the installer clones the
+complete `channel-firmware` repository (`FIRMWARE_URL`) at build time and
+checks its SHA256SUMS. No firmware sets are mixed. For offline builds,
+`FIRMWARE_SOURCE_DIR=/path/to/extracted` points the installer at an
+already available local tree with the same layout (it is validated against
+its SHA256SUMS too). No large binary payload is stored in this rootfs branch.
 
 Example:
 ```sh

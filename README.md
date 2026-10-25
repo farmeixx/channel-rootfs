@@ -1,8 +1,9 @@
 # Motorola Moto G7 Play (channel) rootfs
 
 The **rootfs** branch builds Alpine, Debian and Ubuntu from the organized
-`distros/` directory, reusing an existing mainline kernel checkpoint. Firmware is stored locally as the complete Channel source
-archive and installed by the shared script.
+`distros/` directory, reusing an existing mainline kernel checkpoint. Firmware
+is cloned from the upstream `channel-firmware` repository at build time and
+installed by the shared script.
 
 ## Organized layout
 
@@ -30,7 +31,6 @@ distros/
   ubuntu/
     build.sh                 # Ubuntu-specific builder
 audio/rootfs/                # ALSA UCM and PulseAudio initialization
-firmware/channel/source/     # All imported modem, WCNSS, ADSP, GPU, touchscreen, NV
 docs/firmware.md             # Firmware details
 ```
 
@@ -57,8 +57,9 @@ build metadata and SHA256SUMS. All three currently use 1024 MiB ext4 images.
 
 ## Channel integration
 
-- Firmware: `conf/firmware.conf` + `sh/firmware.sh`; no GitLab download needed
-  when `firmware/channel/source/` is present. Drivers receive their required paths.
+- Firmware: `conf/firmware.conf` + `sh/firmware.sh`; the `channel-firmware`
+  repository is cloned (SHA256SUMS verified) at build time, or reused from a
+  local tree via `FIRMWARE_SOURCE_DIR`. Drivers receive their required paths.
 - USB RNDIS: `conf/usb.conf` + `sh/usb-gadget` (installed inside the rootfs).
   SSH listens on `172.16.42.1`; DHCP assigns `172.16.42.2–20`.
 - Wi-Fi: NetworkManager manages wlan0 but leaves USB `usb0` unmanaged.
