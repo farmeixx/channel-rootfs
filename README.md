@@ -37,8 +37,8 @@ only after validation succeeds; ccache is used on the GitHub runner.
 Rootfs workflows **do not compile or dispatch a kernel**. They check out the
 [`rootfs` branch](https://github.com/farmeixx/channel-rootfs/tree/rootfs)
 and reuse the latest successful, unexpired kernel checkpoint from `mainline.yml`.
-All workflows are manually dispatched; the one-off firmware import workflow was
-removed once firmware was vendored into `rootfs`.
+All workflows are manually dispatched; firmware is not stored here — rootfs
+builds clone the upstream `channel-firmware` repository on GitLab at build time.
 
 See [configuration and porting notes](docs/mainline.md) and
 [`rootfs` README](https://github.com/farmeixx/channel-rootfs/blob/rootfs/README.md).
