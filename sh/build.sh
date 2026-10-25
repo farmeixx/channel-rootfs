@@ -70,6 +70,31 @@ if [ -n "${KERNEL_PIN_RELEASE:-}" ]; then
   export LOCALVERSION=""
 fi
 "${MAKE[@]}" olddefconfig
+
+# Regenerate the generated config state from the merged .config before any
+# release computation. Why this exists: run 40174836719 proved .config ends
+# up correct (fragment merge + scripts/config + olddefconfig) while the
+# release still resolved from the pre-merge generated state, because
+# setlocalversion reads include/config/auto.conf and nothing on this path
+# re-syncs it; a stale auto.conf carries CONFIG_LOCALVERSION_AUTO=y with an
+# empty label, which is exactly the git -g971cba1cb8dd suffix that shipped.
+# Deleting the generated files forces syncconfig to rebuild them from the
+# current .config on fresh clones and on reused workspaces alike, and the
+# greps below refuse to continue when the generated state still misses the
+# pin, so a bad release can never reach the compile step again.
+rm -f include/config/auto.conf include/config/auto.conf.cmd include/config/kernel.release
+"${MAKE[@]}" syncconfig
+if grep -q '^CONFIG_LOCALVERSION_AUTO=y$' include/config/auto.conf; then
+  echo "auto.conf still enables CONFIG_LOCALVERSION_AUTO after syncconfig" >&2
+  exit 1
+fi
+if [ -n "${KERNEL_PIN_RELEASE:-}" ]; then
+  grep -F "CONFIG_LOCALVERSION=\"$KERNEL_PIN_LOCALVERSION\"" include/config/auto.conf >/dev/null || {
+    echo "auto.conf misses the pinned CONFIG_LOCALVERSION label after syncconfig" >&2
+    exit 1
+  }
+fi
+
 # Preserve explicit DWC3 gadget/dual-role check from the older builder.
 if ! grep -qx 'CONFIG_USB_DWC3_DUAL_ROLE=y' .config &&
    ! grep -qx 'CONFIG_USB_DWC3_GADGET=y' .config; then
