@@ -89,10 +89,18 @@ if grep -q '^CONFIG_LOCALVERSION_AUTO=y$' include/config/auto.conf; then
   exit 1
 fi
 if [ -n "${KERNEL_PIN_RELEASE:-}" ]; then
-  grep -F "CONFIG_LOCALVERSION=\"$KERNEL_PIN_LOCALVERSION\"" include/config/auto.conf >/dev/null || {
+  # Quote-tolerant form check: auto.conf stores string symbols in make
+  # assignment syntax, which has been observed both ways across kernel
+  # releases; accept the quoted and the bare forms and, when the pinned
+  # label is missing, print the real lines from both files so the next
+  # run's log needs no forensic trip to diagnose itself.
+  if ! grep -Fqx "CONFIG_LOCALVERSION=\"$KERNEL_PIN_LOCALVERSION\"" include/config/auto.conf \
+     && ! grep -Fqx "CONFIG_LOCALVERSION=$KERNEL_PIN_LOCALVERSION" include/config/auto.conf; then
+    { grep -n 'CONFIG_LOCALVERSION' include/config/auto.conf || echo "(auto.conf carries no CONFIG_LOCALVERSION line)"; } >&2
+    { grep -n 'CONFIG_LOCALVERSION' .config || echo "(.config carries no CONFIG_LOCALVERSION line)"; } >&2
     echo "auto.conf misses the pinned CONFIG_LOCALVERSION label after syncconfig" >&2
     exit 1
-  }
+  fi
 fi
 
 # Preserve explicit DWC3 gadget/dual-role check from the older builder.
