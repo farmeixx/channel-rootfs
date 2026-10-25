@@ -47,6 +47,28 @@ if [ "${#fragments[@]}" -gt 0 ]; then
 fi
 for sym in "${KERNEL_ENABLE_Y[@]}"; do scripts/config --enable "${sym#CONFIG_}"; done
 for sym in "${KERNEL_ENABLE_M[@]}"; do scripts/config --module "${sym#CONFIG_}"; done
+
+# Release pin re-assertion lives after the merge and before the resolver
+# pass: scripts/config writes the final two lines into .config directly,
+# so the merged CONFIG_LOCALVERSION / CONFIG_LOCALVERSION_AUTO cannot be
+# resolved by an older generated state (stale auto.conf with AUTO=y and
+# an empty label yielded the git -g suffix in the shipped release). The
+# exported LOCALVERSION stays deliberately empty: setlocalversion appends
+# the environment value verbatim (a doubled label otherwise), so a
+# set-but-empty variable disables the shallow-clone suffix paths
+# (+/-g<sha>) on tagless checkouts while the one pinned label still comes
+# from CONFIG_LOCALVERSION itself; the olddefconfig pass then resolves
+# the asserted file.
+
+if [ -n "${KERNEL_PIN_RELEASE:-}" ]; then
+  test -n "${KERNEL_PIN_LOCALVERSION:-}" || {
+    echo "KERNEL_PIN_LOCALVERSION missing while KERNEL_PIN_RELEASE is set" >&2
+    exit 1
+  }
+  scripts/config --set-str CONFIG_LOCALVERSION "$KERNEL_PIN_LOCALVERSION"
+  scripts/config --disable CONFIG_LOCALVERSION_AUTO
+  export LOCALVERSION=""
+fi
 "${MAKE[@]}" olddefconfig
 # Preserve explicit DWC3 gadget/dual-role check from the older builder.
 if ! grep -qx 'CONFIG_USB_DWC3_DUAL_ROLE=y' .config &&
@@ -75,6 +97,17 @@ KREL="$("${MAKE[@]}" -s kernelrelease)"
   echo "Invalid kernel release: $KREL" >&2
   exit 1
 }
+
+# Conf-pin equality assert: the packaged release, the Image/DTB partners
+# and every module vermagic must equal the configured pin. Failing here
+# costs ten seconds instead of a full rebuild, so validation stays cheap
+# on the runner. With no pin declared, the byte-exact KREL convention
+# applies as-is (the file checkpoint stays self-consistent either way).
+
+if [ -n "${KERNEL_PIN_RELEASE:-}" ] && [ "$KREL" != "$KERNEL_PIN_RELEASE" ]; then
+  echo "Kernel release '$KREL' differs from pinned release '$KERNEL_PIN_RELEASE'" >&2
+  exit 1
+fi
 
 #------------------------------------------------------------------#
 
