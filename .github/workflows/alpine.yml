@@ -25,21 +25,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: channel-alpine-rootfs
-          path: |
-            out/rootfs/alpine/alpine-channel-rootfs.ext4.zst
-            out/rootfs/alpine/build-info.txt
-            out/rootfs/alpine/SHA256SUMS.alpine
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boot.img
-          path: out/rootfs/alpine/boot.img
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootfs.ext4
-          path: out/rootfs/alpine/rootfs.ext4
+          path: build/rootfs/alpine/
           if-no-files-found: error
           retention-days: 14

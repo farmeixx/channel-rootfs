@@ -25,21 +25,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: channel-ubuntu-rootfs
-          path: |
-            out/rootfs/ubuntu/ubuntu-channel-rootfs.ext4.zst
-            out/rootfs/ubuntu/build-info.txt
-            out/rootfs/ubuntu/SHA256SUMS.ubuntu
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boot.img
-          path: out/rootfs/ubuntu/boot.img
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootfs.ext4
-          path: out/rootfs/ubuntu/rootfs.ext4
+          path: build/rootfs/ubuntu/
           if-no-files-found: error
           retention-days: 14

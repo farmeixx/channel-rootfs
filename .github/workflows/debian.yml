@@ -25,21 +25,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: channel-debian-rootfs
-          path: |
-            out/rootfs/debian/debian-channel-rootfs.ext4.zst
-            out/rootfs/debian/build-info.txt
-            out/rootfs/debian/SHA256SUMS.debian
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boot.img
-          path: out/rootfs/debian/boot.img
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootfs.ext4
-          path: out/rootfs/debian/rootfs.ext4
+          path: build/rootfs/debian/
           if-no-files-found: error
           retention-days: 14
