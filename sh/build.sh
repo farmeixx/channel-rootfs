@@ -99,5 +99,8 @@ cp "$OUT_DIR/build-info.txt" "$DEST/$NAME.build-info.txt"
 cp "$CHECKPOINT/boot-$DEVICE.img" "$DEST/$NAME.boot.img"
 printf 'device=%s\ndistribution=%s\nbuild_utc=%s\nkernel_release=%s\nmodules_archive=%s\n' \
   "$DEVICE" "$DISTRO" "$STAMP" "$KREL" "${MODULES#"$ROOT/"}" > "$DEST/$NAME.local-build.txt"
+# Checksum the dated set itself (the distro builder's SHA256SUMS refers to
+# the pre-dating filenames in OUT_DIR, so it is not published as-is).
+(cd "$DEST" && sha256sum "$NAME.ext4" "$NAME.build-info.txt" "$NAME.boot.img" "$NAME.local-build.txt" > "$NAME.SHA256SUMS")
 say "Finished: $DEST/$NAME.ext4"
 say "Matching boot image: $DEST/$NAME.boot.img"
