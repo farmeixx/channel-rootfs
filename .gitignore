@@ -1,2 +1,5 @@
-out/
+# build artifacts and working state never go back to git
+build/
+cache/
 .work/
+*.log

@@ -4,22 +4,19 @@ Device-specific configuration: [conf/firmware.conf](../conf/firmware.conf).
 
 The shared [sh/firmware.sh](../sh/firmware.sh) reads
 `FIRMWARE_URL`, optional `FIRMWARE_REF`, directory mappings and aliases.
-It clones the complete `channel-firmware` repository, checks its SHA256SUMS
-when present, copies **every firmware file** in the configured directories,
-then installs two Channel NV aliases for the WCN36xx driver and DT.
-This installs WCNSS, ADSP, modem, Venus, GPU and touchscreen firmware;
-firmware binaries are copied, **not compiled**.
+It clones the complete `channel-firmware` repository, copies **every firmware
+file** in the configured directories, then installs two Channel NV aliases
+for the WCN36xx driver and DT. This installs WCNSS, ADSP, modem, Venus, GPU
+and touchscreen firmware; firmware binaries are copied, **not compiled**.
 
 The firmware is not stored in this repository: the installer clones the
-complete `channel-firmware` repository (`FIRMWARE_URL`) at build time and
-checks its SHA256SUMS. No firmware sets are mixed. For offline builds,
-`FIRMWARE_SOURCE_DIR=/path/to/extracted` points the installer at an
-already available local tree with the same layout (it is validated against
-its SHA256SUMS too). No large binary payload is stored in this rootfs branch.
+complete `channel-firmware` repository (`FIRMWARE_URL`) at build time.
+For offline builds, `FIRMWARE_SOURCE_DIR=/path/to/extracted` points the
+installer at an already available local tree with the same layout.
+No large binary payload is stored in this rootfs branch.
 
 Example:
 ```sh
-bash sh/firmware.sh check
 bash sh/firmware.sh install /path/to/staged/rootfs
 ```
 
