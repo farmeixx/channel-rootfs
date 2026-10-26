@@ -39,7 +39,9 @@ export DEVICE JOBS KERNEL_LOCALVERSION MODULES_ARCHIVE_BASE
 # Build host dependencies and the persistent compiler cache.
 source "$ROOT/sh/deps.sh"
 install_host_deps kernel
-export CCACHE_DIR="$CACHE/mainline/ccache" CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}" CCACHE_COMPRESS="${CCACHE_COMPRESS:-true}"
+export CCACHE_DIR="$CACHE/mainline/ccache" \
+  CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}" \
+  CCACHE_COMPRESS="${CCACHE_COMPRESS:-true}"
 mkdir -p "$CCACHE_DIR" "$MODULE_CACHE" "$BUILDS/mainline" "$CACHE/mainline"
 ccache --max-size "$CCACHE_MAXSIZE"
 CCACHE_BIN="$CCACHE_DIR-bin"
@@ -103,13 +105,16 @@ cp "$ARCHIVE"                  "$DEST/$BASE.modules.tar.zst"
 cp "$STAGE/kernel-info.txt"    "$DEST/$BASE.kernel-info.txt"
 cp "$STAGE/kernel-cmdline.txt" "$DEST/$BASE.kernel-cmdline.txt"
 cp "$STAGE/source-report.txt"  "$DEST/$BASE.source-report.txt"
-(cd "$DEST" && sha256sum "$BASE.img" "$BASE.dtb" "$BASE.Image.gz" "$BASE.config" "$BASE.System.map" "$BASE.modules.tar.zst" "$BASE.kernel-info.txt" "$BASE.kernel-cmdline.txt" "$BASE.source-report.txt" > "$BASE.SHA256SUMS")
+(cd "$DEST" && sha256sum "$BASE.img" "$BASE.dtb" "$BASE.Image.gz" "$BASE.config" \
+  "$BASE.System.map" "$BASE.modules.tar.zst" "$BASE.kernel-info.txt" \
+  "$BASE.kernel-cmdline.txt" "$BASE.source-report.txt" > "$BASE.SHA256SUMS")
 
 # Module set published separately, keyed by source sha and release.
 MOD_PATH="$MODULE_CACHE/$SOURCE_SHA/$KREL"
 mkdir -p "$MOD_PATH"
 cp "$ARCHIVE" "$MOD_PATH/${MODULES_ARCHIVE_BASE:-kernel-modules}-$KREL.tar.zst.tmp"
-mv -f "$MOD_PATH/${MODULES_ARCHIVE_BASE:-kernel-modules}-$KREL.tar.zst.tmp" "$MOD_PATH/${MODULES_ARCHIVE_BASE:-kernel-modules}-$KREL.tar.zst"
+mv -f "$MOD_PATH/${MODULES_ARCHIVE_BASE:-kernel-modules}-$KREL.tar.zst.tmp" \
+  "$MOD_PATH/${MODULES_ARCHIVE_BASE:-kernel-modules}-$KREL.tar.zst"
 
 # Publish the reusable checkpoint (previous one kept until the swap completes).
 rm -rf "$PREV"
