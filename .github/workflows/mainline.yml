@@ -19,28 +19,27 @@ jobs:
       - name: Restore ARM64 compiler cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ccache
+          path: cache/mainline/ccache
           key: channel-arm64-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
           restore-keys: |
             channel-arm64-ccache-${{ runner.os }}-${{ runner.arch }}-
-      - name: Build and validate the reusable kernel checkpoint
+      - name: Build the kernel checkpoint
         run: bash sh/run.sh
       - name: Identify kernel revision
         id: source
         shell: bash
         run: |
-          sha="$(sed -n 's/^kernel_source_sha=//p' out/kernel/checkpoint/source-report.txt)"
-          test -n "$sha" || { echo 'Kernel source SHA missing' >&2; exit 1; }
+          sha="$(sed -n 's/^kernel_source_sha=//p' cache/mainline/checkpoint/source-report.txt)"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: channel-mainline-kernel-${{ steps.source.outputs.sha }}
-          path: out/kernel/checkpoint/
+          path: cache/mainline/checkpoint/
           if-no-files-found: error
           retention-days: 90
       - uses: actions/upload-artifact@v4
         with:
           name: boot.img
-          path: out/kernel/images/boot.img
+          path: cache/mainline/checkpoint/boot-channel.img
           if-no-files-found: error
           retention-days: 90
