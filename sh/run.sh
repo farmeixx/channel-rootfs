@@ -103,6 +103,7 @@ cp "$ARCHIVE"                  "$DEST/$BASE.modules.tar.zst"
 cp "$STAGE/kernel-info.txt"    "$DEST/$BASE.kernel-info.txt"
 cp "$STAGE/kernel-cmdline.txt" "$DEST/$BASE.kernel-cmdline.txt"
 cp "$STAGE/source-report.txt"  "$DEST/$BASE.source-report.txt"
+(cd "$DEST" && sha256sum "$BASE.img" "$BASE.dtb" "$BASE.Image.gz" "$BASE.config" "$BASE.System.map" "$BASE.modules.tar.zst" "$BASE.kernel-info.txt" "$BASE.kernel-cmdline.txt" "$BASE.source-report.txt" > "$BASE.SHA256SUMS")
 
 # Module set published separately, keyed by source sha and release.
 MOD_PATH="$MODULE_CACHE/$SOURCE_SHA/$KREL"
