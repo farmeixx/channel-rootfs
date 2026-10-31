@@ -1,0 +1,21 @@
+#!/bin/sh
+# Grow the userdata root filesystem. The GPT partition written by the
+# bootloader is already full size, so only the filesystem needs to grow.
+# Runs on every boot; resize2fs is idempotent.
+
+ROOT_DEV=$(awk '$2 == "/" { print $1; exit }' /proc/mounts)
+
+case "$ROOT_DEV" in
+    *mmcblk0*)
+        echo "channel-grow-rootfs: booting from userdata: $ROOT_DEV"
+        USERDATA_DEV=$(readlink -f /dev/disk/by-partlabel/userdata)
+        if [ -b "$USERDATA_DEV" ]; then
+            resize2fs "$USERDATA_DEV"
+        else
+            echo "channel-grow-rootfs: userdata partition not found"
+        fi
+        ;;
+    *)
+        echo "channel-grow-rootfs: not booting from userdata ($ROOT_DEV), nothing to do"
+        ;;
+esac
