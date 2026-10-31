@@ -1,0 +1,42 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm632-motorola-channel.dts b/arch/arm64/boot/dts/qcom/sdm632-motorola-channel.dts
+index aa3cb50e1..073c5205b 100644
+--- a/arch/arm64/boot/dts/qcom/sdm632-motorola-channel.dts
++++ b/arch/arm64/boot/dts/qcom/sdm632-motorola-channel.dts
+@@ -162,37 +162,7 @@ &mdss_dsi0 {
+ 	vdda-supply = <&pm8953_s3>;
+ 	vddio-supply = <&pm8953_l6>;
+ 	status = "okay";
+-
+-	/*
+-	 * Generic panel compatible: lk2nd rewrites it to the concrete
+-	 * motorola,channel-{568,569}-djn / motorola,channel-{569,570}-dsbj
+-	 * compatible based on the bootloader panel name. vsp/vsn come from
+-	 * the PMI632 LCDB which has no mainline driver yet; the panel
+-	 * drivers fall back to dummy regulators and rely on the bootloader
+-	 * having set LCDB up (same as river/ocean today). iovcc is L6.
+-	 */
+-	panel: panel@0 {
+-		compatible = "motorola,channel-panel";
+-		reg = <0>;
+-
+-		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+-
+-		iovcc-supply = <&pm8953_l6>;
+-
+-		pinctrl-names = "default";
+-		pinctrl-0 = <&panel_default &bklt_en_default>;
+-
+-		port {
+-			panel_in: endpoint {
+-				remote-endpoint = <&mdss_dsi0_out>;
+-			};
+-		};
+-	};
+ };
+-
+-&mdss_dsi0_out {
+-	data-lanes = <0 1 2 3>;
+-	remote-endpoint = <&panel_in>;
+ };
+ 
+ &mdss_dsi0_phy {

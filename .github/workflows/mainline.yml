@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   kernel:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/channel-test'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
