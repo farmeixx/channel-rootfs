@@ -16,6 +16,21 @@ source "${KERNEL_MAINLINE_CONF:-$ROOT/conf/mainline.conf}"
 JOBS="${JOBS:-$(nproc)}"
 mkdir -p "$OUT_DIR"
 cd "$KERNEL_DIR"
+
+# Kernel source patches from sh/patches/** (sorted), applied with git apply.
+# A patch that no longer applies fails the build loudly; one already applied
+# to a persistent checkout is skipped. Every applied patch is logged.
+while IFS= read -r patch_file; do
+  if git apply --check "$patch_file" 2>/dev/null; then
+    git apply "$patch_file"
+    echo "patch applied: $(basename "$patch_file")"
+  elif git apply --check --reverse "$patch_file" 2>/dev/null; then
+    echo "patch already applied: $(basename "$patch_file")"
+  else
+    echo "ERROR: patch does not apply: $patch_file" >&2
+    exit 1
+  fi
+done < <(find "$ROOT/sh/patches" -name '*.patch' | sort)
 MAKE=(make ARCH="$KERNEL_ARCH" CROSS_COMPILE="$KERNEL_CROSS_COMPILE")
 
 "${MAKE[@]}" "$KERNEL_BASE_CONFIG"
