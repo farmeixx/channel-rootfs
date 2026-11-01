@@ -76,7 +76,7 @@ export REPO_ROOT="$SECTION"
 export KERNEL_MODULES_ARCHIVE="$MODULES"
 export KERNEL_CONFIG_FILE="$VENDOR/kernel.config" KERNEL_SYSTEM_MAP_FILE="$VENDOR/System.map"
 say "Building $DEVICE $DISTRO from the vendored kernel modules; no kernel compile."
-bash "$BUILDER"
+bash -x "$BUILDER"
 
 # Date the raw image into build/ and carry its metadata along.
 RAW="$OUT_DIR/$DISTRO-$DEVICE-rootfs.ext4"
