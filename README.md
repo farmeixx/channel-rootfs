@@ -67,3 +67,12 @@ build metadata and SHA256SUMS. All three currently use 1024 MiB ext4 images.
   Alpine; speaker/mic and Debian/Ubuntu runtime are not yet validated.
 
 See [firmware documentation](docs/firmware.md).
+
+## modules-included layout
+
+- vendor/ - self-contained payload: kernel modules, firmware, Image.gz,
+  DTB, mkbootimg.py, kernel metadata
+- mainline/ - packs boot-channel.img from the vendored kernel
+  (bash mainline/pack.sh)
+- rootfs/ - alpine/debian/ubuntu rootfs builders consuming only vendor/
+  (bash rootfs/build.sh <distro>)
